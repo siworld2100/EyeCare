@@ -25,13 +25,14 @@ class Overlay:
             on_skip: 用户点击"跳过"按钮的回调
         """
         self._on_skip = on_skip
-        self._root: tk.Tk = None
+        self._root: tk.Toplevel = None
         self._canvas: tk.Canvas = None
         self._skip_button: tk.Button = None
         self._countdown_label: tk.Label = None
         self._countdown = 0
         self._countdown_id = None
         self._is_showing = False
+        self._hwnd = None  # 保存窗口句柄
 
     @property
     def is_showing(self) -> bool:
@@ -64,7 +65,7 @@ class Overlay:
     def _create_window(self, opacity: int, show_controls: bool):
         """创建全屏蒙版窗口"""
         self._root = tk.Toplevel()
-        self._root.title("EyeCare")
+        self._root.title("EyeCare_Overlay")
         self._root.overrideredirect(True)          # 无标题栏
         self._root.attributes("-topmost", True)    # 始终置顶
 
@@ -86,15 +87,20 @@ class Overlay:
         if show_controls:
             self._create_controls(screen_w, screen_h)
 
-        # 设置窗口透明度（Windows）
+        # 强制更新窗口以确保窗口句柄可用
+        self._root.update_idletasks()
+        self._root.update()
+
+        # 获取正确的窗口句柄
+        self._hwnd = self._root.winfo_id()
+
+        # 设置窗口透明度（Windows API）
         self._set_window_opacity(opacity)
 
         # 绑定 ESC 键跳过
         self._root.bind("<Escape>", lambda e: self._on_skip_click())
         # 禁止关闭窗口（防止 Alt+F4）
         self._root.protocol("WM_DELETE_WINDOW", lambda: None)
-
-        self._root.update()
 
     def _create_controls(self, screen_w: int, screen_h: int):
         """创建休息模式的控制元素（右下角倒计时和跳过按钮）"""
@@ -126,13 +132,15 @@ class Overlay:
 
     def _set_window_opacity(self, opacity_percent: int):
         """设置窗口透明度（Windows API）"""
+        if not self._hwnd:
+            logger.warning("无法获取窗口句柄")
+            return
+
         try:
             import ctypes
             from ctypes import windll
 
-            # 等待窗口句柄可用
-            self._root.update()
-            hwnd = windll.user32.GetForegroundWindow()
+            hwnd = self._hwnd
 
             # 设置分层窗口样式
             ex_style = windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
@@ -142,7 +150,7 @@ class Overlay:
             alpha = int(opacity_percent * 255 / 100)
             alpha = max(0, min(255, alpha))
             windll.user32.SetLayeredWindowAttributes(hwnd, 0, alpha, LWA_ALPHA)
-            logger.debug("窗口透明度设置为 %d%% (alpha=%d)", opacity_percent, alpha)
+            logger.debug("窗口透明度设置为 %d%% (alpha=%d), hwnd=%s", opacity_percent, alpha, hwnd)
         except Exception as e:
             logger.warning("设置窗口透明度失败: %s", e)
 
@@ -174,6 +182,7 @@ class Overlay:
             if self._root:
                 self._root.destroy()
                 self._root = None
+            self._hwnd = None
             self._canvas = None
             self._skip_button = None
             self._countdown_label = None
