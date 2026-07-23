@@ -157,11 +157,11 @@ class SettingsGUI:
             if self._on_save:
                 self._on_save(settings)
             logger.info("设置已保存: %s", settings)
-            messagebox.showinfo("成功", "设置已保存")
+            messagebox.showinfo("成功", "设置已保存", parent=self._root)
             self._on_close()
         except (ValueError, TypeError) as e:
             logger.error("输入验证失败: %s", e)
-            messagebox.showerror("输入错误", f"请输入有效的数字：\n{e}")
+            messagebox.showerror("输入错误", f"请输入有效的数字：\n{e}", parent=self._root)
 
     def _on_close(self):
         """关闭窗口"""
