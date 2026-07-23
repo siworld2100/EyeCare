@@ -157,10 +157,15 @@ class SettingsGUI:
             if self._on_save:
                 self._on_save(settings)
             logger.info("设置已保存: %s", settings)
+            # 临时移除 topmost 让弹窗显示在设置窗口中间
+            self._root.attributes("-topmost", False)
+            self._root.update()
             messagebox.showinfo("成功", "设置已保存", parent=self._root)
             self._on_close()
         except (ValueError, TypeError) as e:
             logger.error("输入验证失败: %s", e)
+            self._root.attributes("-topmost", False)
+            self._root.update()
             messagebox.showerror("输入错误", f"请输入有效的数字：\n{e}", parent=self._root)
 
     def _on_close(self):
