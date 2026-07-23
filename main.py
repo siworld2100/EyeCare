@@ -155,7 +155,7 @@ class EyeCareApp:
     def _open_settings(self):
         """打开设置界面"""
         settings = self.config_manager.settings.to_dict()
-        self.settings_gui.show(settings)
+        self.settings_gui.show(settings, master=self._root)
 
     def _exit_app(self):
         """退出程序"""

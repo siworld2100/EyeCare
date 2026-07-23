@@ -2,7 +2,7 @@
 
 import logging
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from typing import Callable
 
 logger = logging.getLogger(__name__)
@@ -18,18 +18,24 @@ class SettingsGUI:
             on_save: 保存配置的回调，接收 settings 字典
         """
         self._on_save = on_save
-        self._root: tk.Tk = None
+        self._root: tk.Toplevel = None
 
         # 输入框引用
         self._entries = {}
 
-    def show(self, settings: dict):
+    def show(self, settings: dict, master: tk.Tk = None):
         """显示设置窗口"""
         if self._root and self._root.winfo_exists():
             self._root.lift()
+            self._root.focus_force()
             return
 
-        self._root = tk.Tk()
+        # 使用 Toplevel 而不是 Tk
+        if master:
+            self._root = tk.Toplevel(master)
+        else:
+            self._root = tk.Toplevel()
+
         self._root.title("护眼程序 - 设置")
         self._root.resizable(False, False)
         self._root.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -39,6 +45,9 @@ class SettingsGUI:
         x = (self._root.winfo_screenwidth() - w) // 2
         y = (self._root.winfo_screenheight() - h) // 2
         self._root.geometry(f"{w}x{h}+{x}+{y}")
+
+        # 设置窗口属性
+        self._root.attributes("-topmost", True)
 
         main_frame = ttk.Frame(self._root, padding=20)
         main_frame.pack(fill=tk.BOTH, expand=True)
@@ -79,6 +88,10 @@ class SettingsGUI:
 
         save_btn = ttk.Button(btn_frame, text="保存", command=self._on_save_click)
         save_btn.pack(side=tk.RIGHT)
+
+        # 强制刷新界面
+        self._root.update_idletasks()
+        self._root.update()
 
     def _add_field(self, parent, label: str, key: str, default, row: int):
         """添加输入字段"""
@@ -136,11 +149,10 @@ class SettingsGUI:
             if self._on_save:
                 self._on_save(settings)
             logger.info("设置已保存: %s", settings)
+            messagebox.showinfo("成功", "设置已保存")
             self._on_close()
         except (ValueError, TypeError) as e:
             logger.error("输入验证失败: %s", e)
-            # 简单提示
-            from tkinter import messagebox
             messagebox.showerror("输入错误", f"请输入有效的数字：\n{e}")
 
     def _on_close(self):
