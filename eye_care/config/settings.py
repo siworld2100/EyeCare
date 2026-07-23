@@ -20,6 +20,7 @@ class Settings:
 
     # 系统参数
     autostart: bool = False          # 开机自启动
+    paused: bool = False             # 暂停所有提醒
 
     def to_dict(self) -> dict:
         """转换为字典"""

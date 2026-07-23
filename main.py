@@ -64,15 +64,18 @@ class EyeCareApp:
         """启动程序"""
         settings = self.config_manager.settings
 
-        # 启动定时器
-        self._start_rest_timer()
-        self._start_blink_timer()
+        # 启动定时器（如果未暂停）
+        if not settings.paused:
+            self._start_rest_timer()
+            self._start_blink_timer()
+        else:
+            logger.info("程序启动时已暂停")
 
         # 启动系统托盘
         self.tray.start()
 
-        logger.info("护眼程序已就绪 - 休息间隔: %d分钟, 眨眼间隔: %d秒",
-                     settings.rest_interval, settings.blink_interval)
+        logger.info("护眼程序已就绪 - 休息间隔: %d分钟, 眨眼间隔: %d秒, 暂停: %s",
+                     settings.rest_interval, settings.blink_interval, settings.paused)
 
         # 进入 tkinter 事件循环
         self._root.mainloop()
@@ -145,10 +148,20 @@ class EyeCareApp:
         # 更新开机自启
         AutoStart.set_enabled(new_settings.autostart)
 
-        # 重启定时器以应用新间隔
-        self._start_rest_timer()
-        if not self._blink_paused:
-            self._start_blink_timer()
+        # 处理暂停状态
+        if new_settings.paused:
+            # 暂停：停止所有定时器，隐藏蒙版
+            self._pause_blink()
+            if self._rest_timer_id:
+                self._root.after_cancel(self._rest_timer_id)
+                self._rest_timer_id = None
+            self.overlay.hide()
+            logger.info("所有提醒已暂停")
+        else:
+            # 恢复：重启定时器
+            self._start_rest_timer()
+            self._resume_blink()
+            logger.info("所有提醒已恢复")
 
         logger.info("设置已更新并生效")
 

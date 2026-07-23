@@ -72,12 +72,19 @@ class SettingsGUI:
         sys_frame = ttk.LabelFrame(main_frame, text="系统设置", padding=10)
         sys_frame.pack(fill=tk.X, pady=(0, 10))
 
+        self._paused_var = tk.BooleanVar(value=settings.get("paused", False))
+        paused_check = ttk.Checkbutton(
+            sys_frame, text="暂停所有提醒（开会时使用）",
+            variable=self._paused_var
+        )
+        paused_check.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=2)
+
         self._autostart_var = tk.BooleanVar(value=settings.get("autostart", False))
         autostart_check = ttk.Checkbutton(
             sys_frame, text="开机自启动",
             variable=self._autostart_var
         )
-        autostart_check.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=2)
+        autostart_check.grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=2)
 
         # ---- 按钮 ----
         btn_frame = ttk.Frame(main_frame)
@@ -135,6 +142,7 @@ class SettingsGUI:
                 "blink_duration": self._get_value("blink_duration", is_float=True),
                 "blink_opacity": self._get_value("blink_opacity"),
                 "autostart": self._autostart_var.get(),
+                "paused": self._paused_var.get(),
             }
             # 基本验证
             if settings["rest_interval"] < 1:
