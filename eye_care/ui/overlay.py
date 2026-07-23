@@ -1,7 +1,9 @@
-"""蒙版界面 - 全屏半透明遮罩层（休息和眨眼共用）"""
+"""蒙版界面 - 全屏半透明遮罩层（休息和眨眼共用）
+
+所有操作在主线程中执行，与 tkinter 事件循环集成。
+"""
 
 import logging
-import threading
 import tkinter as tk
 from typing import Callable
 
@@ -29,36 +31,39 @@ class Overlay:
         self._countdown_label: tk.Label = None
         self._countdown = 0
         self._countdown_id = None
-        self._is_rest_mode = False
-        self._lock = threading.Lock()
+        self._is_showing = False
+
+    @property
+    def is_showing(self) -> bool:
+        """蒙版是否正在显示"""
+        return self._is_showing
 
     def show_rest(self, duration: int, opacity: int):
         """显示休息蒙版"""
-        with self._lock:
-            if self._root and self._root.winfo_exists():
-                return
-        self._is_rest_mode = True
+        if self._is_showing:
+            return
+        self._is_showing = True
         self._countdown = duration
         self._create_window(opacity, show_controls=True)
         self._start_countdown()
 
     def show_blink(self, duration: float, opacity: int):
         """显示眨眼蒙版"""
-        with self._lock:
-            if self._root and self._root.winfo_exists():
-                return
-        self._is_rest_mode = False
+        if self._is_showing:
+            return
+        self._is_showing = True
         self._create_window(opacity, show_controls=False)
         # 定时自动关闭
-        self._root.after(int(duration * 1000), self._force_hide)
+        self._root.after(int(duration * 1000), self.hide)
 
-    def hide(self, duration: int = 0, opacity: int = 0):
+    def hide(self):
         """隐藏蒙版"""
+        self._is_showing = False
         self._force_hide()
 
     def _create_window(self, opacity: int, show_controls: bool):
         """创建全屏蒙版窗口"""
-        self._root = tk.Tk()
+        self._root = tk.Toplevel()
         self._root.title("EyeCare")
         self._root.overrideredirect(True)          # 无标题栏
         self._root.attributes("-topmost", True)    # 始终置顶
@@ -148,7 +153,7 @@ class Overlay:
             self._countdown -= 1
             self._countdown_id = self._root.after(1000, self._start_countdown)
         else:
-            # 倒计时结束，自动关闭（休息时间到）
+            # 倒计时结束，自动关闭
             self._on_skip_click()
 
     def _on_skip_click(self):
@@ -158,7 +163,7 @@ class Overlay:
             self._countdown_id = None
         if self._on_skip:
             self._on_skip()
-        self._force_hide()
+        self.hide()
 
     def _force_hide(self):
         """强制隐藏蒙版"""
