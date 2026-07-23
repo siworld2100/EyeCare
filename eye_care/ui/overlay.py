@@ -9,11 +9,6 @@ from typing import Callable
 
 logger = logging.getLogger(__name__)
 
-# Windows API 常量
-GWL_EXSTYLE = -20
-WS_EX_LAYERED = 0x80000
-LWA_ALPHA = 0x2
-
 
 class Overlay:
     """全屏蒙版界面，支持透明度调节"""
@@ -32,7 +27,6 @@ class Overlay:
         self._countdown = 0
         self._countdown_id = None
         self._is_showing = False
-        self._hwnd = None  # 保存窗口句柄
 
     @property
     def is_showing(self) -> bool:
@@ -87,14 +81,11 @@ class Overlay:
         if show_controls:
             self._create_controls(screen_w, screen_h)
 
-        # 强制更新窗口以确保窗口句柄可用
+        # 强制更新窗口
         self._root.update_idletasks()
         self._root.update()
 
-        # 获取正确的窗口句柄
-        self._hwnd = self._root.winfo_id()
-
-        # 设置窗口透明度（Windows API）
+        # 设置窗口透明度
         self._set_window_opacity(opacity)
 
         # 绑定 ESC 键跳过
@@ -131,26 +122,14 @@ class Overlay:
         self._skip_button.pack()
 
     def _set_window_opacity(self, opacity_percent: int):
-        """设置窗口透明度（Windows API）"""
-        if not self._hwnd:
-            logger.warning("无法获取窗口句柄")
-            return
-
+        """设置窗口透明度"""
         try:
-            import ctypes
-            from ctypes import windll
-
-            hwnd = self._hwnd
-
-            # 设置分层窗口样式
-            ex_style = windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
-            windll.user32.SetWindowLongW(hwnd, GWL_EXSTYLE, ex_style | WS_EX_LAYERED)
-
-            # 映射 0-100 到 0-255
-            alpha = int(opacity_percent * 255 / 100)
-            alpha = max(0, min(255, alpha))
-            windll.user32.SetLayeredWindowAttributes(hwnd, 0, alpha, LWA_ALPHA)
-            logger.debug("窗口透明度设置为 %d%% (alpha=%d), hwnd=%s", opacity_percent, alpha, hwnd)
+            # 使用 tkinter 内置的 -alpha 属性
+            # 0 = 完全透明, 1 = 完全不透明
+            alpha = opacity_percent / 100.0
+            alpha = max(0.0, min(1.0, alpha))
+            self._root.attributes("-alpha", alpha)
+            logger.debug("窗口透明度设置为 %d%% (alpha=%.2f)", opacity_percent, alpha)
         except Exception as e:
             logger.warning("设置窗口透明度失败: %s", e)
 
@@ -182,7 +161,6 @@ class Overlay:
             if self._root:
                 self._root.destroy()
                 self._root = None
-            self._hwnd = None
             self._canvas = None
             self._skip_button = None
             self._countdown_label = None
