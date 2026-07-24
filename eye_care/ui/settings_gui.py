@@ -147,7 +147,7 @@ class SettingsGUI:
         self._root.update_idletasks()
 
         # 窗口居中
-        w, h = 420, 580
+        w, h = 420, 620
         x = (self._root.winfo_screenwidth() - w) // 2
         y = (self._root.winfo_screenheight() - h) // 2
         self._root.geometry(f"{w}x{h}+{x}+{y}")
@@ -157,7 +157,7 @@ class SettingsGUI:
 
         # ---- 休息设置 ----
         rest_frame = ttk.LabelFrame(main_frame, text="休息设置", padding=10)
-        rest_frame.pack(fill=tk.X, pady=(0, 10))
+        rest_frame.pack(fill=tk.X, pady=(0, 5))
 
         self._add_field(rest_frame, "休息间隔（分钟）", "rest_interval", settings.get("rest_interval", 20), 0)
         self._add_field(rest_frame, "休息时长（秒）", "rest_duration", settings.get("rest_duration", 20), 1)
@@ -165,7 +165,7 @@ class SettingsGUI:
 
         # ---- 眨眼设置 ----
         blink_frame = ttk.LabelFrame(main_frame, text="眨眼设置", padding=10)
-        blink_frame.pack(fill=tk.X, pady=(0, 10))
+        blink_frame.pack(fill=tk.X, pady=(0, 5))
 
         self._add_field(blink_frame, "提醒间隔（秒）", "blink_interval", settings.get("blink_interval", 45), 0)
         self._add_field(blink_frame, "显示时长（秒）", "blink_duration", settings.get("blink_duration", 1.5), 1)
@@ -209,34 +209,31 @@ class SettingsGUI:
 
     def _add_slider(self, parent, label: str, key: str, default: int, row: int):
         """添加滑块，带渐变色块预览"""
-        ttk.Label(parent, text=label).grid(row=row, column=0, sticky=tk.W, pady=4)
+        # 第一行：标签和滑块
+        ttk.Label(parent, text=label).grid(row=row, column=0, sticky=tk.W, pady=(4, 0))
 
-        # 右侧容器
         slider_frame = tk.Frame(parent)
-        slider_frame.grid(row=row, column=1, sticky=tk.E, pady=4, padx=(10, 0))
+        slider_frame.grid(row=row, column=1, sticky=tk.E, pady=(4, 0), padx=(10, 0))
 
-        # 数值显示
         value_var = tk.IntVar(value=default)
         value_label = ttk.Label(slider_frame, textvariable=value_var, width=4)
         value_label.pack(side=tk.RIGHT, padx=(5, 0))
 
-        # 滑块
         slider = ttk.Scale(
             slider_frame, from_=0, to=100, variable=value_var,
             orient=tk.HORIZONTAL, width=100, length=100
         )
         slider.pack(side=tk.RIGHT)
 
-        # 渐变色块（从白到黑）
-        gradient = tk.Canvas(slider_frame, width=120, height=16, highlightthickness=0)
-        gradient.pack(side=tk.LEFT, padx=(0, 5))
+        # 第二行：渐变色块
+        gradient = tk.Canvas(parent, width=160, height=12, highlightthickness=0)
+        gradient.grid(row=row + 1, column=0, columnspan=2, sticky=tk.W, pady=(0, 4))
 
         # 绘制渐变：0=白色（透明），100=黑色（不透明）
-        for i in range(120):
-            # 从白色(255)到黑色(0)
-            gray = int(255 - (i / 119) * 255)
+        for i in range(160):
+            gray = int(255 - (i / 159) * 255)
             color = f"#{gray:02x}{gray:02x}{gray:02x}"
-            gradient.create_line(i, 0, i, 15, fill=color)
+            gradient.create_line(i, 0, i, 11, fill=color)
 
         self._entries[key] = value_var
 
