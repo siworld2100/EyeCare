@@ -4,7 +4,7 @@ import os
 import sys
 import logging
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk
 from typing import Callable
 
 logger = logging.getLogger(__name__)
@@ -18,6 +18,90 @@ def _get_base_path():
 
 
 _ICON_PATH = os.path.join(_get_base_path(), "eye_care.ico")
+
+
+class MessageDialog:
+    """自定义消息对话框，跟随父窗口显示"""
+
+    def __init__(self, parent, title, message, msg_type="info"):
+        """
+        初始化对话框
+        Args:
+            parent: 父窗口
+            title: 标题
+            message: 消息内容
+            msg_type: 类型 - "info" 或 "error"
+        """
+        self.result = None
+
+        # 创建对话框
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title(title)
+        self.dialog.resizable(False, False)
+        self.dialog.transient(parent)  # 关联父窗口
+        self.dialog.grab_set()  # 模态
+
+        # 设置图标
+        if os.path.exists(_ICON_PATH):
+            self.dialog.iconbitmap(_ICON_PATH)
+
+        # 对话框内容
+        frame = ttk.Frame(self.dialog, padding=20)
+        frame.pack(fill=tk.BOTH, expand=True)
+
+        # 图标和消息
+        if msg_type == "error":
+            icon_text = "错误"
+        else:
+            icon_text = "成功"
+
+        ttk.Label(frame, text=icon_text, font=("Microsoft YaHei", 14, "bold")).pack(pady=(0, 10))
+        ttk.Label(frame, text=message, font=("Microsoft YaHei", 10), wraplength=300).pack(pady=(0, 15))
+
+        # 确定按钮
+        ttk.Button(frame, text="确定", command=self._on_ok, width=10).pack()
+
+        # 键盘绑定
+        self.dialog.bind("<Return>", lambda e: self._on_ok())
+        self.dialog.bind("<Escape>", lambda e: self._on_ok())
+
+        # 计算位置：显示在父窗口中心
+        self.dialog.update_idletasks()
+        dialog_w = self.dialog.winfo_width()
+        dialog_h = self.dialog.winfo_height()
+        parent_x = parent.winfo_x()
+        parent_y = parent.winfo_y()
+        parent_w = parent.winfo_width()
+        parent_h = parent.winfo_height()
+        x = parent_x + (parent_w - dialog_w) // 2
+        y = parent_y + (parent_h - dialog_h) // 2
+        self.dialog.geometry(f"+{x}+{y}")
+
+        # 确保在父窗口前面
+        self.dialog.lift()
+        self.dialog.focus_force()
+
+    def _on_ok(self):
+        """点击确定"""
+        self.result = "ok"
+        self.dialog.destroy()
+
+    def show(self):
+        """显示对话框并等待关闭"""
+        self.dialog.wait_window()
+        return self.result
+
+
+def show_info(parent, title, message):
+    """显示信息对话框"""
+    dialog = MessageDialog(parent, title, message, "info")
+    return dialog.show()
+
+
+def show_error(parent, title, message):
+    """显示错误对话框"""
+    dialog = MessageDialog(parent, title, message, "error")
+    return dialog.show()
 
 
 class SettingsGUI:
@@ -115,10 +199,6 @@ class SettingsGUI:
         save_btn = ttk.Button(btn_frame, text="保存", command=self._on_save_click)
         save_btn.pack(side=tk.RIGHT)
 
-        # 强制刷新界面
-        self._root.update_idletasks()
-        self._root.update()
-
     def _add_field(self, parent, label: str, key: str, default, row: int):
         """添加输入字段"""
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky=tk.W, pady=4)
@@ -176,18 +256,11 @@ class SettingsGUI:
             if self._on_save:
                 self._on_save(settings)
             logger.info("设置已保存: %s", settings)
-            # 确保设置窗口在前台
-            self._root.lift()
-            self._root.focus_force()
-            self._root.update()
-            messagebox.showinfo("成功", "设置已保存", parent=self._root)
+            show_info(self._root, "成功", "设置已保存")
             self._on_close()
         except (ValueError, TypeError) as e:
             logger.error("输入验证失败: %s", e)
-            self._root.lift()
-            self._root.focus_force()
-            self._root.update()
-            messagebox.showerror("输入错误", f"请输入有效的数字：\n{e}", parent=self._root)
+            show_error(self._root, "输入错误", f"请输入有效的数字：\n{e}")
 
     def _on_close(self):
         """关闭窗口"""
