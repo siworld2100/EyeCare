@@ -203,29 +203,26 @@ class SettingsGUI:
 
     def _add_slider_with_preview(self, parent, label: str, key: str, default: int, row: int):
         """添加滑块，右侧带颜色预览"""
+        # 标签
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky=tk.W, pady=4)
-
-        # 滑块容器
-        slider_frame = tk.Frame(parent)
-        slider_frame.grid(row=row, column=1, sticky=tk.E, pady=4, padx=(10, 0))
 
         value_var = tk.IntVar(value=default)
 
-        # 颜色预览（小方块）
-        color_preview = tk.Canvas(slider_frame, width=24, height=24, highlightthickness=1, highlightbackground="#999999")
-        color_preview.pack(side=tk.RIGHT, padx=(8, 0))
+        # 颜色预览（小方块）- 单独放在右边
+        color_preview = tk.Canvas(parent, width=24, height=24, highlightthickness=1, highlightbackground="#999999")
+        color_preview.grid(row=row, column=3, padx=(10, 0), pady=4)
         self._color_previews[key] = color_preview
 
         # 数值显示
-        value_label = ttk.Label(slider_frame, textvariable=value_var, width=4)
-        value_label.pack(side=tk.RIGHT, padx=(5, 0))
+        value_label = ttk.Label(parent, textvariable=value_var, width=4)
+        value_label.grid(row=row, column=2, padx=(10, 0), pady=4)
 
         # 滑块
         slider = ttk.Scale(
-            slider_frame, from_=0, to=100, variable=value_var,
-            orient=tk.HORIZONTAL, width=100, length=100
+            parent, from_=0, to=100, variable=value_var,
+            orient=tk.HORIZONTAL, length=120
         )
-        slider.pack(side=tk.RIGHT)
+        slider.grid(row=row, column=1, sticky=tk.E, pady=4, padx=(10, 0))
 
         # 初始颜色
         self._update_color_preview(key, default)
