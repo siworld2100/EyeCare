@@ -11,15 +11,15 @@ class Settings:
     # 休息参数
     rest_interval: int = 20          # 休息间隔（分钟）
     rest_duration: int = 20          # 休息时长（秒）
-    rest_opacity: int = 70           # 休息蒙版透明度（0-100，100为完全不透明/黑色）
+    rest_opacity: int = 70           # 休息蒙版不透明度（0-100，100为完全不透明/黑色）
 
     # 眨眼参数
     blink_interval: int = 45         # 眨眼提醒间隔（秒）
-    blink_duration: float = 1.5      # 眨眼蒙版显示时长（秒）
-    blink_opacity: int = 30          # 眨眼蒙版透明度（0-100）
+    blink_duration: float = 2.0      # 眨眼蒙版显示时长（秒）
+    blink_opacity: int = 100         # 眨眼蒙版不透明度（0-100）
 
     # 系统参数
-    autostart: bool = False          # 开机自启动
+    autostart: bool = True           # 开机自启动
     paused: bool = False             # 暂停所有提醒
 
     def to_dict(self) -> dict:

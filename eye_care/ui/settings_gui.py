@@ -115,7 +115,7 @@ class SettingsGUI:
 
         self._add_field(rest_left, "休息间隔（分钟）", "rest_interval", settings.get("rest_interval", 20), 0)
         self._add_field(rest_left, "休息时长（秒）", "rest_duration", settings.get("rest_duration", 20), 1)
-        self._add_slider(rest_left, "蒙版透明度（%）", "rest_opacity", settings.get("rest_opacity", 70), 2)
+        self._add_slider(rest_left, "不透明度（%）", "rest_opacity", settings.get("rest_opacity", 70), 2)
 
         # 右侧：颜色预览
         rest_preview = tk.Canvas(rest_frame, width=100, height=80, highlightthickness=1, highlightbackground="#cccccc")
@@ -132,14 +132,14 @@ class SettingsGUI:
         blink_left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         self._add_field(blink_left, "提醒间隔（秒）", "blink_interval", settings.get("blink_interval", 45), 0)
-        self._add_field(blink_left, "显示时长（秒）", "blink_duration", settings.get("blink_duration", 1.5), 1)
-        self._add_slider(blink_left, "蒙版透明度（%）", "blink_opacity", settings.get("blink_opacity", 30), 2)
+        self._add_field(blink_left, "显示时长（秒）", "blink_duration", settings.get("blink_duration", 2.0), 1)
+        self._add_slider(blink_left, "不透明度（%）", "blink_opacity", settings.get("blink_opacity", 100), 2)
 
         # 右侧：颜色预览
         blink_preview = tk.Canvas(blink_frame, width=100, height=80, highlightthickness=1, highlightbackground="#cccccc")
         blink_preview.pack(side=tk.RIGHT, padx=(10, 0))
         self._color_previews["blink_opacity"] = blink_preview
-        self._update_color_preview("blink_opacity", settings.get("blink_opacity", 30))
+        self._update_color_preview("blink_opacity", settings.get("blink_opacity", 100))
 
         # ---- 系统设置 ----
         sys_frame = ttk.LabelFrame(self._root, text="系统设置", padding=10)
