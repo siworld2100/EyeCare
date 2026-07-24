@@ -115,7 +115,7 @@ class SettingsGUI:
         self._root.attributes("-topmost", True)
         self._root.update_idletasks()
 
-        w, h = 500, 420
+        w, h = 480, 500
         x = (self._root.winfo_screenwidth() - w) // 2
         y = (self._root.winfo_screenheight() - h) // 2
         self._root.geometry(f"{w}x{h}+{x}+{y}")
@@ -124,38 +124,20 @@ class SettingsGUI:
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         # ---- 休息设置 ----
-        rest_container = ttk.Frame(main_frame)
-        rest_container.pack(fill=tk.X, pady=(0, 10))
-
-        rest_frame = ttk.LabelFrame(rest_container, text="休息设置", padding=10)
-        rest_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
+        rest_frame = ttk.LabelFrame(main_frame, text="休息设置", padding=10)
+        rest_frame.pack(fill=tk.X, pady=(0, 10))
 
         self._add_field(rest_frame, "休息间隔（分钟）", "rest_interval", settings.get("rest_interval", 20), 0)
         self._add_field(rest_frame, "休息时长（秒）", "rest_duration", settings.get("rest_duration", 20), 1)
-        self._add_slider(rest_frame, "蒙版透明度（%）", "rest_opacity", settings.get("rest_opacity", 70), 2)
-
-        # 休息颜色预览
-        rest_preview = tk.Canvas(rest_container, width=100, height=80, highlightthickness=1, highlightbackground="#cccccc")
-        rest_preview.pack(side=tk.RIGHT, fill=tk.Y)
-        self._color_previews["rest_opacity"] = rest_preview
-        self._update_color_preview("rest_opacity", settings.get("rest_opacity", 70))
+        self._add_slider_with_preview(rest_frame, "蒙版透明度（%）", "rest_opacity", settings.get("rest_opacity", 70), 2)
 
         # ---- 眨眼设置 ----
-        blink_container = ttk.Frame(main_frame)
-        blink_container.pack(fill=tk.X, pady=(0, 10))
-
-        blink_frame = ttk.LabelFrame(blink_container, text="眨眼设置", padding=10)
-        blink_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
+        blink_frame = ttk.LabelFrame(main_frame, text="眨眼设置", padding=10)
+        blink_frame.pack(fill=tk.X, pady=(0, 10))
 
         self._add_field(blink_frame, "提醒间隔（秒）", "blink_interval", settings.get("blink_interval", 45), 0)
         self._add_field(blink_frame, "显示时长（秒）", "blink_duration", settings.get("blink_duration", 1.5), 1)
-        self._add_slider(blink_frame, "蒙版透明度（%）", "blink_opacity", settings.get("blink_opacity", 30), 2)
-
-        # 眨眼颜色预览
-        blink_preview = tk.Canvas(blink_container, width=100, height=80, highlightthickness=1, highlightbackground="#cccccc")
-        blink_preview.pack(side=tk.RIGHT, fill=tk.Y)
-        self._color_previews["blink_opacity"] = blink_preview
-        self._update_color_preview("blink_opacity", settings.get("blink_opacity", 30))
+        self._add_slider_with_preview(blink_frame, "蒙版透明度（%）", "blink_opacity", settings.get("blink_opacity", 30), 2)
 
         # ---- 系统设置 ----
         sys_frame = ttk.LabelFrame(main_frame, text="系统设置", padding=10)
@@ -212,6 +194,43 @@ class SettingsGUI:
         slider.pack(side=tk.RIGHT)
 
         # 监听滑块值变化，实时更新颜色预览
+        def on_value_change(*args):
+            self._update_color_preview(key, value_var.get())
+
+        value_var.trace_add("write", on_value_change)
+
+        self._entries[key] = value_var
+
+    def _add_slider_with_preview(self, parent, label: str, key: str, default: int, row: int):
+        """添加滑块，右侧带颜色预览"""
+        ttk.Label(parent, text=label).grid(row=row, column=0, sticky=tk.W, pady=4)
+
+        # 滑块容器
+        slider_frame = tk.Frame(parent)
+        slider_frame.grid(row=row, column=1, sticky=tk.E, pady=4, padx=(10, 0))
+
+        value_var = tk.IntVar(value=default)
+
+        # 颜色预览（小方块）
+        color_preview = tk.Canvas(slider_frame, width=24, height=24, highlightthickness=1, highlightbackground="#999999")
+        color_preview.pack(side=tk.RIGHT, padx=(8, 0))
+        self._color_previews[key] = color_preview
+
+        # 数值显示
+        value_label = ttk.Label(slider_frame, textvariable=value_var, width=4)
+        value_label.pack(side=tk.RIGHT, padx=(5, 0))
+
+        # 滑块
+        slider = ttk.Scale(
+            slider_frame, from_=0, to=100, variable=value_var,
+            orient=tk.HORIZONTAL, width=100, length=100
+        )
+        slider.pack(side=tk.RIGHT)
+
+        # 初始颜色
+        self._update_color_preview(key, default)
+
+        # 监听滑块值变化
         def on_value_change(*args):
             self._update_color_preview(key, value_var.get())
 
