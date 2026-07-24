@@ -40,14 +40,17 @@ class SettingsGUI:
         self._root.resizable(False, False)
         self._root.protocol("WM_DELETE_WINDOW", self._on_close)
 
+        # 设置窗口属性
+        self._root.attributes("-topmost", True)
+
+        # 先显示窗口以获取正确的屏幕尺寸
+        self._root.update_idletasks()
+
         # 窗口居中
         w, h = 420, 520
         x = (self._root.winfo_screenwidth() - w) // 2
         y = (self._root.winfo_screenheight() - h) // 2
         self._root.geometry(f"{w}x{h}+{x}+{y}")
-
-        # 设置窗口属性
-        self._root.attributes("-topmost", True)
 
         main_frame = ttk.Frame(self._root, padding=20)
         main_frame.pack(fill=tk.BOTH, expand=True)
