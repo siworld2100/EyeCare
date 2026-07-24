@@ -1,5 +1,7 @@
 """系统托盘 - 最小化到托盘，提供设置和退出菜单"""
 
+import os
+import sys
 import logging
 import threading
 from typing import Callable
@@ -9,8 +11,31 @@ from PIL import Image, ImageDraw
 logger = logging.getLogger(__name__)
 
 
-def _create_icon_image() -> Image.Image:
-    """生成托盘图标（眼睛形状）"""
+def _get_base_path():
+    """获取基础路径（兼容打包后）"""
+    if getattr(sys, 'frozen', False):
+        return sys._MEIPASS
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+_ICON_PATH = os.path.join(_get_base_path(), "eye_care.ico")
+_PNG_ICON_PATH = os.path.join(_get_base_path(), "eye_care_icon.png")
+
+
+def _load_icon_image() -> Image.Image:
+    """加载托盘图标"""
+    # 优先使用 png 图标
+    if os.path.exists(_PNG_ICON_PATH):
+        return Image.open(_PNG_ICON_PATH)
+    # 使用 ico 图标
+    if os.path.exists(_ICON_PATH):
+        return Image.open(_ICON_PATH)
+    # 兜底：动态生成
+    return _create_fallback_icon()
+
+
+def _create_fallback_icon() -> Image.Image:
+    """兜底：动态生成图标"""
     size = 64
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
@@ -44,7 +69,7 @@ class TrayManager:
 
     def start(self):
         """启动系统托盘（在后台线程中运行）"""
-        icon_image = _create_icon_image()
+        icon_image = _load_icon_image()
 
         menu = pystray.Menu(
             pystray.MenuItem("设置", self._menu_settings, default=True),

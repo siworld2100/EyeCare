@@ -1,11 +1,23 @@
 """设置界面 - 配置休息/眨眼参数和系统选项"""
 
+import os
+import sys
 import logging
 import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import Callable
 
 logger = logging.getLogger(__name__)
+
+
+def _get_base_path():
+    """获取基础路径（兼容打包后）"""
+    if getattr(sys, 'frozen', False):
+        return sys._MEIPASS
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+_ICON_PATH = os.path.join(_get_base_path(), "eye_care.ico")
 
 
 class SettingsGUI:
@@ -39,6 +51,10 @@ class SettingsGUI:
         self._root.title("护眼程序 - 设置")
         self._root.resizable(False, False)
         self._root.protocol("WM_DELETE_WINDOW", self._on_close)
+
+        # 设置窗口图标
+        if os.path.exists(_ICON_PATH):
+            self._root.iconbitmap(_ICON_PATH)
 
         # 设置窗口属性
         self._root.attributes("-topmost", True)
