@@ -1,11 +1,22 @@
 """配置管理器 - 负责配置文件的读写"""
 
 import os
+import sys
 import json
 import logging
 from .settings import Settings
 
 logger = logging.getLogger(__name__)
+
+
+def _get_app_dir():
+    """获取程序所在目录（兼容打包后）"""
+    if getattr(sys, 'frozen', False):
+        # 打包后：exe 所在的目录
+        return os.path.dirname(sys.executable)
+    else:
+        # 开发模式：项目根目录
+        return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 class ConfigManager:
@@ -18,10 +29,11 @@ class ConfigManager:
             config_path: 配置文件路径，默认为 data/config.json
         """
         if config_path is None:
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            config_path = os.path.join(base_dir, "data", "config.json")
+            app_dir = _get_app_dir()
+            config_path = os.path.join(app_dir, "data", "config.json")
         self.config_path = config_path
         self._settings = None
+        logger.info("配置文件路径: %s", self.config_path)
 
     @property
     def settings(self) -> Settings:
