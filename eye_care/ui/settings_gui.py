@@ -208,48 +208,15 @@ class SettingsGUI:
         self._entries[key] = entry
 
     def _add_slider(self, parent, label: str, key: str, default: int, row: int):
-        """添加滑块，带实时颜色预览"""
+        """添加滑块"""
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky=tk.W, pady=4)
-
-        # 滑块容器
-        slider_frame = tk.Frame(parent)
-        slider_frame.grid(row=row, column=1, sticky=tk.E, pady=4, padx=(10, 0))
-
         value_var = tk.IntVar(value=default)
-
-        # 颜色预览区域（30x30 的方块）
-        color_preview = tk.Canvas(slider_frame, width=30, height=30, highlightthickness=1, highlightbackground="#cccccc")
-        color_preview.pack(side=tk.RIGHT, padx=(10, 0))
-
-        # 数值显示
-        value_label = ttk.Label(slider_frame, textvariable=value_var, width=4)
-        value_label.pack(side=tk.RIGHT, padx=(5, 0))
-
-        # 滑块
         slider = ttk.Scale(
-            slider_frame, from_=0, to=100, variable=value_var,
-            orient=tk.HORIZONTAL, width=120, length=120
+            parent, from_=0, to=100, variable=value_var,
+            orient=tk.HORIZONTAL, length=120
         )
-        slider.pack(side=tk.RIGHT)
-
-        # 初始颜色
-        self._update_color_preview(color_preview, default)
-
-        # 监听滑块值变化，实时更新颜色
-        def on_value_change(*args):
-            self._update_color_preview(color_preview, value_var.get())
-
-        value_var.trace_add("write", on_value_change)
-
+        slider.grid(row=row, column=1, sticky=tk.E, pady=4, padx=(10, 0))
         self._entries[key] = value_var
-
-    def _update_color_preview(self, canvas: tk.Canvas, value: int):
-        """更新颜色预览"""
-        # 0=白色（透明），100=黑色（不透明）
-        gray = int((value / 100) * 255)
-        color = f"#{gray:02x}{gray:02x}{gray:02x}"
-        canvas.delete("all")
-        canvas.create_rectangle(0, 0, 30, 30, fill=color, outline="")
 
     def _get_value(self, key: str, is_float: bool = False):
         """获取字段值"""
