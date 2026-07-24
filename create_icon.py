@@ -1,75 +1,38 @@
-"""生成程序图标"""
+"""生成程序图标 - 使用简单方法确保兼容性"""
 
 from PIL import Image, ImageDraw
 
 
 def create_icon():
     """创建眼睛形状的图标"""
-    # 创建多个尺寸的图标
-    sizes = [16, 32, 48, 64, 128, 256]
-    images = []
+    # 创建 256x256 的图标
+    size = 256
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
 
-    for size in sizes:
-        img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(img)
+    # 眼睛轮廓 - 外层
+    draw.ellipse([20, 50, 236, 206], outline=(100, 200, 100, 255), width=12)
+    # 眼球
+    draw.ellipse([60, 70, 196, 186], fill=(100, 200, 100, 255))
+    # 瞳孔
+    center = size // 2
+    draw.ellipse([center - 30, center - 30, center + 30, center + 30], fill=(30, 80, 30, 255))
+    # 高光
+    draw.ellipse([center - 20, center - 40, center + 10, center - 10], fill=(255, 255, 255, 200))
 
-        # 缩放比例
-        scale = size / 64
-
-        # 眼睛轮廓 - 外层
-        eye_left = int(8 * scale)
-        eye_top = int(16 * scale)
-        eye_right = int(56 * scale)
-        eye_bottom = int(48 * scale)
-        outline_width = max(1, int(3 * scale))
-
-        draw.ellipse(
-            [eye_left, eye_top, eye_right, eye_bottom],
-            outline=(100, 200, 100, 255),
-            width=outline_width
-        )
-
-        # 眼球
-        pupil_left = int(22 * scale)
-        pupil_top = int(22 * scale)
-        pupil_right = int(42 * scale)
-        pupil_bottom = int(42 * scale)
-        draw.ellipse(
-            [pupil_left, pupil_top, pupil_right, pupil_bottom],
-            fill=(100, 200, 100, 255)
-        )
-
-        # 瞳孔
-        center = size // 2
-        pupil_r = int(4 * scale)
-        draw.ellipse(
-            [center - pupil_r, center - pupil_r, center + pupil_r, center + pupil_r],
-            fill=(30, 80, 30, 255)
-        )
-
-        # 高光
-        highlight_r = int(2 * scale)
-        hx = center - int(2 * scale)
-        hy = center - int(4 * scale)
-        draw.ellipse(
-            [hx - highlight_r, hy - highlight_r, hx + highlight_r, hy + highlight_r],
-            fill=(255, 255, 255, 200)
-        )
-
-        images.append(img)
-
-    # 保存为 .ico 文件（多尺寸）
-    images[0].save(
-        "eye_care.ico",
-        format="ICO",
-        sizes=[(s, s) for s in sizes],
-        append_images=images[1:]
-    )
+    # 保存为 ico（包含多种尺寸）
+    img.save("eye_care.ico", format="ICO", sizes=[(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
     print("图标已生成: eye_care.ico")
 
-    # 同时保存一个 64x64 的 png 用于设置界面
-    images[2].save("eye_care_icon.png", format="PNG")
+    # 同时保存 png 用于托盘
+    img_small = img.resize((64, 64), Image.Resampling.LANCZOS)
+    img_small.save("eye_care_icon.png", format="PNG")
     print("PNG 图标已生成: eye_care_icon.png")
+
+    # 验证图标文件
+    import os
+    ico_size = os.path.getsize("eye_care.ico")
+    print(f"ico 文件大小: {ico_size} 字节")
 
 
 if __name__ == "__main__":
