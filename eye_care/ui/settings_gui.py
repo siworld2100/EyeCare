@@ -186,7 +186,8 @@ class SettingsGUI:
         canvas = self._color_previews.get(key)
         if not canvas:
             return
-        gray = int((value / 100) * 255)
+        # 0=白色（透明），100=黑色（不透明）
+        gray = int(255 - (value / 100) * 255)
         color = f"#{gray:02x}{gray:02x}{gray:02x}"
         canvas.delete("all")
         canvas.create_rectangle(0, 0, 100, 80, fill=color, outline="")
