@@ -8,15 +8,20 @@ from .settings import Settings
 
 logger = logging.getLogger(__name__)
 
+APP_NAME = "EyeCare"
 
-def _get_app_dir():
-    """获取程序所在目录（兼容打包后）"""
-    if getattr(sys, 'frozen', False):
-        # 打包后：exe 所在的目录
-        return os.path.dirname(sys.executable)
+
+def _get_config_dir():
+    """获取配置文件目录（保存到用户 AppData）"""
+    if sys.platform == "win32":
+        # Windows: %LOCALAPPDATA%\EyeCare
+        return os.path.join(os.environ.get("LOCALAPPDATA", ""), APP_NAME)
+    elif sys.platform == "darwin":
+        # macOS: ~/Library/Application Support/EyeCare
+        return os.path.join(os.path.expanduser("~"), "Library", "Application Support", APP_NAME)
     else:
-        # 开发模式：项目根目录
-        return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        # Linux: ~/.config/EyeCare
+        return os.path.join(os.path.expanduser("~"), ".config", APP_NAME)
 
 
 class ConfigManager:
@@ -26,11 +31,11 @@ class ConfigManager:
         """
         初始化配置管理器
         Args:
-            config_path: 配置文件路径，默认为 data/config.json
+            config_path: 配置文件路径，默认为用户目录下的 config.json
         """
         if config_path is None:
-            app_dir = _get_app_dir()
-            config_path = os.path.join(app_dir, "data", "config.json")
+            config_dir = _get_config_dir()
+            config_path = os.path.join(config_dir, "config.json")
         self.config_path = config_path
         self._settings = None
         logger.info("配置文件路径: %s", self.config_path)
