@@ -100,7 +100,7 @@ class SettingsGUI:
         self._root.attributes("-topmost", True)
         self._root.update_idletasks()
 
-        w, h = 520, 400
+        w, h = 520, 450
         x = (self._root.winfo_screenwidth() - w) // 2
         y = (self._root.winfo_screenheight() - h) // 2
         self._root.geometry(f"{w}x{h}+{x}+{y}")
