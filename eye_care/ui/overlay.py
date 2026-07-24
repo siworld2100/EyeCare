@@ -27,6 +27,8 @@ class Overlay:
         self._countdown = 0
         self._countdown_id = None
         self._is_showing = False
+        self._fade_id = None  # 渐变动画 ID
+        self._blink_phase = "idle"  # idle, fadeIn, hold, fadeOut
 
     @property
     def is_showing(self) -> bool:
@@ -43,17 +45,74 @@ class Overlay:
         self._start_countdown()
 
     def show_blink(self, duration: float, opacity: int):
-        """显示眨眼蒙版"""
+        """显示眨眼蒙版（渐变呼吸灯效果）"""
         if self._is_showing:
             return
         self._is_showing = True
-        self._create_window(opacity, show_controls=False)
-        # 定时自动关闭
-        self._root.after(int(duration * 1000), self.hide)
+        self._blink_target_opacity = opacity
+        self._blink_duration = duration
+        # 创建窗口，初始透明度为0
+        self._create_window(0, show_controls=False)
+        # 开始渐入动画
+        self._blink_phase = "fadeIn"
+        self._blink_current_alpha = 0
+        self._blink_fade_step = 3  # 每步增加的透明度
+        self._blink_fade_delay = 20  # 每步间隔（毫秒）
+        self._animate_fade_in()
+
+    def _animate_fade_in(self):
+        """渐入动画"""
+        if self._blink_phase != "fadeIn":
+            return
+
+        self._blink_current_alpha += self._blink_fade_step
+        if self._blink_current_alpha >= self._blink_target_opacity:
+            # 渐入完成，进入保持阶段
+            self._blink_current_alpha = self._blink_target_opacity
+            self._set_alpha(self._blink_current_alpha)
+            self._blink_phase = "hold"
+            # 保持一段时间后渐出
+            hold_time = int(self._blink_duration * 1000)
+            self._fade_id = self._root.after(hold_time, self._start_fade_out)
+        else:
+            self._set_alpha(self._blink_current_alpha)
+            self._fade_id = self._root.after(self._blink_fade_delay, self._animate_fade_in)
+
+    def _start_fade_out(self):
+        """开始渐出动画"""
+        if self._blink_phase != "hold":
+            return
+        self._blink_phase = "fadeOut"
+        self._animate_fade_out()
+
+    def _animate_fade_out(self):
+        """渐出动画"""
+        if self._blink_phase != "fadeOut":
+            return
+
+        self._blink_current_alpha -= self._blink_fade_step
+        if self._blink_current_alpha <= 0:
+            # 渐出完成，隐藏蒙版
+            self._blink_current_alpha = 0
+            self.hide()
+        else:
+            self._set_alpha(self._blink_current_alpha)
+            self._fade_id = self._root.after(self._blink_fade_delay, self._animate_fade_out)
+
+    def _set_alpha(self, alpha_percent: int):
+        """设置窗口透明度"""
+        try:
+            if self._root:
+                alpha = alpha_percent / 100.0
+                alpha = max(0.0, min(1.0, alpha))
+                self._root.attributes("-alpha", alpha)
+        except Exception as e:
+            logger.debug("设置透明度失败: %s", e)
 
     def hide(self):
         """隐藏蒙版"""
         self._is_showing = False
+        self._blink_phase = "idle"
         self._force_hide()
 
     def _create_window(self, opacity: int, show_controls: bool):
@@ -158,6 +217,9 @@ class Overlay:
             if self._countdown_id and self._root:
                 self._root.after_cancel(self._countdown_id)
                 self._countdown_id = None
+            if self._fade_id and self._root:
+                self._root.after_cancel(self._fade_id)
+                self._fade_id = None
             if self._root:
                 self._root.destroy()
                 self._root = None
