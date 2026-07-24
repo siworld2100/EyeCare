@@ -24,9 +24,7 @@ class MessageDialog:
     """自定义消息对话框，跟随父窗口显示"""
 
     def __init__(self, parent, title, message, msg_type="info"):
-        """初始化对话框"""
         self.result = None
-
         self.dialog = tk.Toplevel(parent)
         self.dialog.title(title)
         self.dialog.resizable(False, False)
@@ -39,11 +37,7 @@ class MessageDialog:
         frame = ttk.Frame(self.dialog, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
-        if msg_type == "error":
-            icon_text = "错误"
-        else:
-            icon_text = "成功"
-
+        icon_text = "错误" if msg_type == "error" else "成功"
         ttk.Label(frame, text=icon_text, font=("Microsoft YaHei", 14, "bold")).pack(pady=(0, 10))
         ttk.Label(frame, text=message, font=("Microsoft YaHei", 10), wraplength=300).pack(pady=(0, 15))
         ttk.Button(frame, text="确定", command=self._on_ok, width=10).pack()
@@ -52,15 +46,13 @@ class MessageDialog:
         self.dialog.bind("<Escape>", lambda e: self._on_ok())
 
         self.dialog.update_idletasks()
-        dialog_w = self.dialog.winfo_width()
-        dialog_h = self.dialog.winfo_height()
-        parent_x = parent.winfo_x()
-        parent_y = parent.winfo_y()
-        parent_w = parent.winfo_width()
-        parent_h = parent.winfo_height()
-        x = parent_x + (parent_w - dialog_w) // 2
-        y = parent_y + (parent_h - dialog_h) // 2
-        self.dialog.geometry(f"+{x}+{y}")
+        pw = parent.winfo_width()
+        ph = parent.winfo_height()
+        px = parent.winfo_x()
+        py = parent.winfo_y()
+        dw = self.dialog.winfo_width()
+        dh = self.dialog.winfo_height()
+        self.dialog.geometry(f"+{px + (pw - dw) // 2}+{py + (ph - dh) // 2}")
 
         self.dialog.lift()
         self.dialog.focus_force()
@@ -75,13 +67,11 @@ class MessageDialog:
 
 
 def show_info(parent, title, message):
-    dialog = MessageDialog(parent, title, message, "info")
-    return dialog.show()
+    return MessageDialog(parent, title, message, "info").show()
 
 
 def show_error(parent, title, message):
-    dialog = MessageDialog(parent, title, message, "error")
-    return dialog.show()
+    return MessageDialog(parent, title, message, "error").show()
 
 
 class SettingsGUI:
@@ -91,20 +81,15 @@ class SettingsGUI:
         self._on_save = on_save
         self._root: tk.Toplevel = None
         self._entries = {}
-        self._color_previews = {}  # 存储颜色预览画布
+        self._color_previews = {}
 
     def show(self, settings: dict, master: tk.Tk = None):
-        """显示设置窗口"""
         if self._root and self._root.winfo_exists():
             self._root.lift()
             self._root.focus_force()
             return
 
-        if master:
-            self._root = tk.Toplevel(master)
-        else:
-            self._root = tk.Toplevel()
-
+        self._root = tk.Toplevel(master) if master else tk.Toplevel()
         self._root.title("护眼程序 - 设置")
         self._root.resizable(False, False)
         self._root.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -115,60 +100,65 @@ class SettingsGUI:
         self._root.attributes("-topmost", True)
         self._root.update_idletasks()
 
-        w, h = 480, 500
+        w, h = 520, 400
         x = (self._root.winfo_screenwidth() - w) // 2
         y = (self._root.winfo_screenheight() - h) // 2
         self._root.geometry(f"{w}x{h}+{x}+{y}")
 
-        main_frame = ttk.Frame(self._root, padding=20)
-        main_frame.pack(fill=tk.BOTH, expand=True)
-
         # ---- 休息设置 ----
-        rest_frame = ttk.LabelFrame(main_frame, text="休息设置", padding=10)
-        rest_frame.pack(fill=tk.X, pady=(0, 10))
+        rest_frame = ttk.LabelFrame(self._root, text="休息设置", padding=10)
+        rest_frame.pack(fill=tk.X, padx=15, pady=(15, 5))
 
-        self._add_field(rest_frame, "休息间隔（分钟）", "rest_interval", settings.get("rest_interval", 20), 0)
-        self._add_field(rest_frame, "休息时长（秒）", "rest_duration", settings.get("rest_duration", 20), 1)
-        self._add_slider_with_preview(rest_frame, "蒙版透明度（%）", "rest_opacity", settings.get("rest_opacity", 70), 2)
+        # 左侧：输入框和滑块
+        rest_left = tk.Frame(rest_frame)
+        rest_left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        self._add_field(rest_left, "休息间隔（分钟）", "rest_interval", settings.get("rest_interval", 20), 0)
+        self._add_field(rest_left, "休息时长（秒）", "rest_duration", settings.get("rest_duration", 20), 1)
+        self._add_slider(rest_left, "蒙版透明度（%）", "rest_opacity", settings.get("rest_opacity", 70), 2)
+
+        # 右侧：颜色预览
+        rest_preview = tk.Canvas(rest_frame, width=100, height=80, highlightthickness=1, highlightbackground="#cccccc")
+        rest_preview.pack(side=tk.RIGHT, padx=(10, 0))
+        self._color_previews["rest_opacity"] = rest_preview
+        self._update_color_preview("rest_opacity", settings.get("rest_opacity", 70))
 
         # ---- 眨眼设置 ----
-        blink_frame = ttk.LabelFrame(main_frame, text="眨眼设置", padding=10)
-        blink_frame.pack(fill=tk.X, pady=(0, 10))
+        blink_frame = ttk.LabelFrame(self._root, text="眨眼设置", padding=10)
+        blink_frame.pack(fill=tk.X, padx=15, pady=5)
 
-        self._add_field(blink_frame, "提醒间隔（秒）", "blink_interval", settings.get("blink_interval", 45), 0)
-        self._add_field(blink_frame, "显示时长（秒）", "blink_duration", settings.get("blink_duration", 1.5), 1)
-        self._add_slider_with_preview(blink_frame, "蒙版透明度（%）", "blink_opacity", settings.get("blink_opacity", 30), 2)
+        # 左侧：输入框和滑块
+        blink_left = tk.Frame(blink_frame)
+        blink_left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        self._add_field(blink_left, "提醒间隔（秒）", "blink_interval", settings.get("blink_interval", 45), 0)
+        self._add_field(blink_left, "显示时长（秒）", "blink_duration", settings.get("blink_duration", 1.5), 1)
+        self._add_slider(blink_left, "蒙版透明度（%）", "blink_opacity", settings.get("blink_opacity", 30), 2)
+
+        # 右侧：颜色预览
+        blink_preview = tk.Canvas(blink_frame, width=100, height=80, highlightthickness=1, highlightbackground="#cccccc")
+        blink_preview.pack(side=tk.RIGHT, padx=(10, 0))
+        self._color_previews["blink_opacity"] = blink_preview
+        self._update_color_preview("blink_opacity", settings.get("blink_opacity", 30))
 
         # ---- 系统设置 ----
-        sys_frame = ttk.LabelFrame(main_frame, text="系统设置", padding=10)
-        sys_frame.pack(fill=tk.X, pady=(0, 10))
+        sys_frame = ttk.LabelFrame(self._root, text="系统设置", padding=10)
+        sys_frame.pack(fill=tk.X, padx=15, pady=(5, 10))
 
         self._paused_var = tk.BooleanVar(value=settings.get("paused", False))
-        paused_check = ttk.Checkbutton(
-            sys_frame, text="暂停所有提醒（开会时使用）",
-            variable=self._paused_var
-        )
-        paused_check.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=2)
+        ttk.Checkbutton(sys_frame, text="暂停所有提醒（开会时使用）", variable=self._paused_var).pack(anchor=tk.W, pady=2)
 
         self._autostart_var = tk.BooleanVar(value=settings.get("autostart", False))
-        autostart_check = ttk.Checkbutton(
-            sys_frame, text="开机自启动",
-            variable=self._autostart_var
-        )
-        autostart_check.grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=2)
+        ttk.Checkbutton(sys_frame, text="开机自启动", variable=self._autostart_var).pack(anchor=tk.W, pady=2)
 
         # ---- 按钮 ----
-        btn_frame = ttk.Frame(main_frame)
-        btn_frame.pack(fill=tk.X, pady=(10, 0))
+        btn_frame = tk.Frame(self._root)
+        btn_frame.pack(fill=tk.X, padx=15, pady=(0, 15))
 
-        cancel_btn = ttk.Button(btn_frame, text="取消", command=self._on_close)
-        cancel_btn.pack(side=tk.RIGHT, padx=(5, 0))
-
-        save_btn = ttk.Button(btn_frame, text="保存", command=self._on_save_click)
-        save_btn.pack(side=tk.RIGHT)
+        ttk.Button(btn_frame, text="取消", command=self._on_close).pack(side=tk.RIGHT, padx=(5, 0))
+        ttk.Button(btn_frame, text="保存", command=self._on_save_click).pack(side=tk.RIGHT)
 
     def _add_field(self, parent, label: str, key: str, default, row: int):
-        """添加输入字段"""
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky=tk.W, pady=4)
         entry = ttk.Entry(parent, width=15)
         entry.insert(0, str(default))
@@ -176,92 +166,41 @@ class SettingsGUI:
         self._entries[key] = entry
 
     def _add_slider(self, parent, label: str, key: str, default: int, row: int):
-        """添加滑块"""
-        ttk.Label(parent, text=label).grid(row=row, column=0, sticky=tk.W, pady=4)
-
-        slider_frame = tk.Frame(parent)
-        slider_frame.grid(row=row, column=1, sticky=tk.E, pady=4, padx=(10, 0))
-
-        value_var = tk.IntVar(value=default)
-
-        value_label = ttk.Label(slider_frame, textvariable=value_var, width=4)
-        value_label.pack(side=tk.RIGHT, padx=(5, 0))
-
-        slider = ttk.Scale(
-            slider_frame, from_=0, to=100, variable=value_var,
-            orient=tk.HORIZONTAL, width=100, length=100
-        )
-        slider.pack(side=tk.RIGHT)
-
-        # 监听滑块值变化，实时更新颜色预览
-        def on_value_change(*args):
-            self._update_color_preview(key, value_var.get())
-
-        value_var.trace_add("write", on_value_change)
-
-        self._entries[key] = value_var
-
-    def _add_slider_with_preview(self, parent, label: str, key: str, default: int, row: int):
-        """添加滑块，右侧带颜色预览"""
-        # 标签
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky=tk.W, pady=4)
 
         value_var = tk.IntVar(value=default)
 
-        # 颜色预览（小方块）- 单独放在右边
-        color_preview = tk.Canvas(parent, width=24, height=24, highlightthickness=1, highlightbackground="#999999")
-        color_preview.grid(row=row, column=3, padx=(10, 0), pady=4)
-        self._color_previews[key] = color_preview
+        ttk.Label(parent, textvariable=value_var, width=4).grid(row=row, column=2, padx=(10, 0), pady=4)
 
-        # 数值显示
-        value_label = ttk.Label(parent, textvariable=value_var, width=4)
-        value_label.grid(row=row, column=2, padx=(10, 0), pady=4)
-
-        # 滑块
-        slider = ttk.Scale(
-            parent, from_=0, to=100, variable=value_var,
-            orient=tk.HORIZONTAL, length=120
-        )
+        slider = ttk.Scale(parent, from_=0, to=100, variable=value_var, orient=tk.HORIZONTAL, length=100)
         slider.grid(row=row, column=1, sticky=tk.E, pady=4, padx=(10, 0))
-
-        # 初始颜色
-        self._update_color_preview(key, default)
 
         # 监听滑块值变化
         def on_value_change(*args):
             self._update_color_preview(key, value_var.get())
 
         value_var.trace_add("write", on_value_change)
-
         self._entries[key] = value_var
 
     def _update_color_preview(self, key: str, value: int):
-        """更新颜色预览"""
         canvas = self._color_previews.get(key)
         if not canvas:
             return
-
-        # 0=白色（透明），100=黑色（不透明）
         gray = int((value / 100) * 255)
         color = f"#{gray:02x}{gray:02x}{gray:02x}"
-
         canvas.delete("all")
         canvas.create_rectangle(0, 0, 100, 80, fill=color, outline="")
 
     def _get_value(self, key: str, is_float: bool = False):
-        """获取字段值"""
         widget = self._entries.get(key)
         if widget is None:
             return None
         if isinstance(widget, tk.IntVar):
             return widget.get()
         text = widget.get().strip()
-        if is_float:
-            return float(text)
-        return int(text)
+        return float(text) if is_float else int(text)
 
     def _on_save_click(self):
-        """保存按钮点击"""
         try:
             settings = {
                 "rest_interval": self._get_value("rest_interval"),
@@ -284,11 +223,9 @@ class SettingsGUI:
 
             if self._on_save:
                 self._on_save(settings)
-            logger.info("设置已保存: %s", settings)
             show_info(self._root, "成功", "设置已保存")
             self._on_close()
         except (ValueError, TypeError) as e:
-            logger.error("输入验证失败: %s", e)
             show_error(self._root, "输入错误", f"请输入有效的数字：\n{e}")
 
     def _on_close(self):
