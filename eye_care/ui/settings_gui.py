@@ -147,7 +147,7 @@ class SettingsGUI:
         self._root.update_idletasks()
 
         # 窗口居中
-        w, h = 420, 620
+        w, h = 420, 520
         x = (self._root.winfo_screenwidth() - w) // 2
         y = (self._root.winfo_screenheight() - h) // 2
         self._root.geometry(f"{w}x{h}+{x}+{y}")
@@ -157,21 +157,19 @@ class SettingsGUI:
 
         # ---- 休息设置 ----
         rest_frame = ttk.LabelFrame(main_frame, text="休息设置", padding=10)
-        rest_frame.pack(fill=tk.X, pady=(0, 5))
+        rest_frame.pack(fill=tk.X, pady=(0, 10))
 
         self._add_field(rest_frame, "休息间隔（分钟）", "rest_interval", settings.get("rest_interval", 20), 0)
         self._add_field(rest_frame, "休息时长（秒）", "rest_duration", settings.get("rest_duration", 20), 1)
-        self._add_slider(rest_frame, "透明度", "rest_opacity", settings.get("rest_opacity", 70), 2)
-        self._add_gradient(rest_frame, 3)
+        self._add_slider(rest_frame, "蒙版透明度（%）", "rest_opacity", settings.get("rest_opacity", 70), 2)
 
         # ---- 眨眼设置 ----
         blink_frame = ttk.LabelFrame(main_frame, text="眨眼设置", padding=10)
-        blink_frame.pack(fill=tk.X, pady=(0, 5))
+        blink_frame.pack(fill=tk.X, pady=(0, 10))
 
         self._add_field(blink_frame, "提醒间隔（秒）", "blink_interval", settings.get("blink_interval", 45), 0)
         self._add_field(blink_frame, "显示时长（秒）", "blink_duration", settings.get("blink_duration", 1.5), 1)
-        self._add_slider(blink_frame, "透明度", "blink_opacity", settings.get("blink_opacity", 30), 2)
-        self._add_gradient(blink_frame, 3)
+        self._add_slider(blink_frame, "蒙版透明度（%）", "blink_opacity", settings.get("blink_opacity", 30), 2)
 
         # ---- 系统设置 ----
         sys_frame = ttk.LabelFrame(main_frame, text="系统设置", padding=10)
@@ -210,35 +208,15 @@ class SettingsGUI:
         self._entries[key] = entry
 
     def _add_slider(self, parent, label: str, key: str, default: int, row: int):
-        """添加滑块，带渐变色块预览"""
-        # 标签
+        """添加滑块"""
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky=tk.W, pady=4)
-
-        # 右侧容器（滑块+数值）
-        slider_frame = tk.Frame(parent)
-        slider_frame.grid(row=row, column=1, sticky=tk.E, pady=4, padx=(10, 0))
-
         value_var = tk.IntVar(value=default)
-        value_label = ttk.Label(slider_frame, textvariable=value_var, width=4)
-        value_label.pack(side=tk.RIGHT, padx=(5, 0))
-
         slider = ttk.Scale(
-            slider_frame, from_=0, to=100, variable=value_var,
-            orient=tk.HORIZONTAL, width=100, length=100
+            parent, from_=0, to=100, variable=value_var,
+            orient=tk.HORIZONTAL, length=120
         )
-        slider.pack(side=tk.RIGHT)
-
+        slider.grid(row=row, column=1, sticky=tk.E, pady=4, padx=(10, 0))
         self._entries[key] = value_var
-
-    def _add_gradient(self, parent, row: int):
-        """添加渐变色块（从白到黑）"""
-        gradient = tk.Canvas(parent, width=280, height=10, highlightthickness=0, bg="white")
-        gradient.grid(row=row, column=0, columnspan=2, sticky=tk.W, pady=(0, 2))
-        # 绘制渐变：左白（透明）→ 右黑（不透明）
-        for i in range(280):
-            gray = int((i / 279) * 255)
-            color = f"#{gray:02x}{gray:02x}{gray:02x}"
-            gradient.create_line(i, 0, i, 9, fill=color)
 
     def _get_value(self, key: str, is_float: bool = False):
         """获取字段值"""
