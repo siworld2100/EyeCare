@@ -100,14 +100,14 @@ class SettingsGUI:
         self._root.attributes("-topmost", True)
         self._root.update_idletasks()
 
-        w, h = 520, 450
+        w, h = 480, 380
         x = (self._root.winfo_screenwidth() - w) // 2
         y = (self._root.winfo_screenheight() - h) // 2
         self._root.geometry(f"{w}x{h}+{x}+{y}")
 
         # ---- 休息设置 ----
         rest_frame = ttk.LabelFrame(self._root, text="休息设置", padding=10)
-        rest_frame.pack(fill=tk.X, padx=15, pady=(15, 5))
+        rest_frame.pack(fill=tk.X, padx=15, pady=(10, 5))
 
         # 左侧：输入框和滑块
         rest_left = tk.Frame(rest_frame)
@@ -118,14 +118,14 @@ class SettingsGUI:
         self._add_slider(rest_left, "蒙版透明度（%）", "rest_opacity", settings.get("rest_opacity", 70), 2)
 
         # 右侧：颜色预览
-        rest_preview = tk.Canvas(rest_frame, width=100, height=80, highlightthickness=1, highlightbackground="#cccccc")
-        rest_preview.pack(side=tk.RIGHT, padx=(10, 0))
+        rest_preview = tk.Canvas(rest_frame, width=80, height=60, highlightthickness=1, highlightbackground="#cccccc")
+        rest_preview.pack(side=tk.RIGHT, padx=(5, 0))
         self._color_previews["rest_opacity"] = rest_preview
         self._update_color_preview("rest_opacity", settings.get("rest_opacity", 70))
 
         # ---- 眨眼设置 ----
         blink_frame = ttk.LabelFrame(self._root, text="眨眼设置", padding=10)
-        blink_frame.pack(fill=tk.X, padx=15, pady=5)
+        blink_frame.pack(fill=tk.X, padx=15, pady=(5, 5))
 
         # 左侧：输入框和滑块
         blink_left = tk.Frame(blink_frame)
@@ -136,14 +136,14 @@ class SettingsGUI:
         self._add_slider(blink_left, "蒙版透明度（%）", "blink_opacity", settings.get("blink_opacity", 30), 2)
 
         # 右侧：颜色预览
-        blink_preview = tk.Canvas(blink_frame, width=100, height=80, highlightthickness=1, highlightbackground="#cccccc")
-        blink_preview.pack(side=tk.RIGHT, padx=(10, 0))
+        blink_preview = tk.Canvas(blink_frame, width=80, height=60, highlightthickness=1, highlightbackground="#cccccc")
+        blink_preview.pack(side=tk.RIGHT, padx=(5, 0))
         self._color_previews["blink_opacity"] = blink_preview
         self._update_color_preview("blink_opacity", settings.get("blink_opacity", 30))
 
         # ---- 系统设置 ----
         sys_frame = ttk.LabelFrame(self._root, text="系统设置", padding=10)
-        sys_frame.pack(fill=tk.X, padx=15, pady=(5, 10))
+        sys_frame.pack(fill=tk.X, padx=15, pady=(5, 8))
 
         self._paused_var = tk.BooleanVar(value=settings.get("paused", False))
         ttk.Checkbutton(sys_frame, text="暂停所有提醒（开会时使用）", variable=self._paused_var).pack(anchor=tk.W, pady=2)
@@ -153,7 +153,7 @@ class SettingsGUI:
 
         # ---- 按钮 ----
         btn_frame = tk.Frame(self._root)
-        btn_frame.pack(fill=tk.X, padx=15, pady=(0, 15))
+        btn_frame.pack(fill=tk.X, padx=15, pady=(0, 10))
 
         ttk.Button(btn_frame, text="取消", command=self._on_close).pack(side=tk.RIGHT, padx=(5, 0))
         ttk.Button(btn_frame, text="保存", command=self._on_save_click).pack(side=tk.RIGHT)
@@ -189,7 +189,7 @@ class SettingsGUI:
         gray = int((value / 100) * 255)
         color = f"#{gray:02x}{gray:02x}{gray:02x}"
         canvas.delete("all")
-        canvas.create_rectangle(0, 0, 100, 80, fill=color, outline="")
+        canvas.create_rectangle(0, 0, 80, 60, fill=color, outline="")
 
     def _get_value(self, key: str, is_float: bool = False):
         widget = self._entries.get(key)
