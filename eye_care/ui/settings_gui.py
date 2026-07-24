@@ -147,7 +147,7 @@ class SettingsGUI:
         self._root.update_idletasks()
 
         # 窗口居中
-        w, h = 420, 520
+        w, h = 420, 580
         x = (self._root.winfo_screenwidth() - w) // 2
         y = (self._root.winfo_screenheight() - h) // 2
         self._root.geometry(f"{w}x{h}+{x}+{y}")
