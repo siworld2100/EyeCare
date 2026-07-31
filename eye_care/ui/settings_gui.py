@@ -3,6 +3,7 @@
 import math
 import os
 import sys
+import ctypes
 import tkinter as tk
 from tkinter import ttk
 from typing import Callable
@@ -68,6 +69,9 @@ class SettingsGUI:
         self._root: tk.Toplevel | None = None
         self._entries = {}
         self._color_previews = {}
+        self._scroll_canvas: tk.Canvas | None = None
+        self._scroll_window_id = None
+        self._monitor_update_id = None
 
     def show(self, settings: dict, master: tk.Tk = None):
         if self._root and self._root.winfo_exists():
@@ -85,8 +89,22 @@ class SettingsGUI:
         self._root.attributes("-topmost", True)
         self._configure_styles()
 
+        # Keep the original section order, but make the body scrollable on short screens.
+        body = ttk.Frame(self._root, style="Page.TFrame")
+        body.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        self._scroll_canvas = tk.Canvas(body, bg="#F5F7FB", highlightthickness=0, borderwidth=0)
+        scrollbar = ttk.Scrollbar(body, orient=tk.VERTICAL, command=self._scroll_canvas.yview)
+        self._scroll_canvas.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self._scroll_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        content = ttk.Frame(self._scroll_canvas, style="Page.TFrame")
+        self._scroll_window_id = self._scroll_canvas.create_window((0, 0), window=content, anchor=tk.NW)
+        content.bind("<Configure>", self._update_scroll_region)
+        self._scroll_canvas.bind("<Configure>", self._resize_scroll_content)
+        self._root.bind("<MouseWheel>", self._on_mousewheel)
+
         # Original structure: rest settings, blink settings, system settings, then actions.
-        rest_frame = ttk.LabelFrame(self._root, text="休息设置", style="Settings.TLabelframe", padding=12)
+        rest_frame = ttk.LabelFrame(content, text="休息设置", style="Settings.TLabelframe", padding=12)
         rest_frame.pack(fill=tk.X, padx=16, pady=(16, 6))
         rest_left = ttk.Frame(rest_frame, style="Page.TFrame")
         rest_left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -95,7 +113,7 @@ class SettingsGUI:
         self._add_slider(rest_left, "不透明度（%）", "rest_opacity", settings.get("rest_opacity", 70), 2)
         self._add_preview(rest_frame, "rest_opacity", settings.get("rest_opacity", 70))
 
-        blink_frame = ttk.LabelFrame(self._root, text="眨眼设置", style="Settings.TLabelframe", padding=12)
+        blink_frame = ttk.LabelFrame(content, text="眨眼设置", style="Settings.TLabelframe", padding=12)
         blink_frame.pack(fill=tk.X, padx=16, pady=6)
         blink_left = ttk.Frame(blink_frame, style="Page.TFrame")
         blink_left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -104,7 +122,7 @@ class SettingsGUI:
         self._add_slider(blink_left, "不透明度（%）", "blink_opacity", settings.get("blink_opacity", 100), 2)
         self._add_preview(blink_frame, "blink_opacity", settings.get("blink_opacity", 100))
 
-        sys_frame = ttk.LabelFrame(self._root, text="系统设置", style="Settings.TLabelframe", padding=10)
+        sys_frame = ttk.LabelFrame(content, text="系统设置", style="Settings.TLabelframe", padding=10)
         sys_frame.pack(fill=tk.X, padx=16, pady=(6, 10))
         self._paused_var = tk.BooleanVar(value=settings.get("paused", False))
         ttk.Checkbutton(sys_frame, text="暂停所有提醒（开会时使用）", variable=self._paused_var).pack(anchor=tk.W, pady=2)
@@ -118,6 +136,7 @@ class SettingsGUI:
         ttk.Button(btn_frame, text="保存", command=self._on_save_click, width=10).pack(side=tk.RIGHT)
 
         self._fit_to_screen()
+        self._root.bind("<Configure>", self._schedule_monitor_update, add="+")
 
     def _configure_styles(self):
         style = ttk.Style(self._root)
@@ -127,13 +146,61 @@ class SettingsGUI:
 
     def _fit_to_screen(self):
         self._root.update_idletasks()
-        screen_w, screen_h = self._root.winfo_screenwidth(), self._root.winfo_screenheight()
-        width = min(max(520, self._root.winfo_reqwidth()), max(360, screen_w - 80))
-        height = min(max(450, self._root.winfo_reqheight()), max(300, screen_h - 80))
+        work_left, work_top, work_right, work_bottom = self._get_monitor_work_area()
+        work_w, work_h = work_right - work_left, work_bottom - work_top
+        max_width = max(360, min(680, work_w - 48))
+        max_height = max(300, work_h - 48)
+        width = min(max(520, self._root.winfo_reqwidth()), max_width)
+        height = min(max(450, self._root.winfo_reqheight()), max_height)
         self._root.minsize(min(440, width), min(300, height))
-        x = (screen_w - width) // 2
-        y = max(20, (screen_h - height) // 2)
+        self._root.maxsize(max_width, max_height)
+        x = work_left + (work_w - width) // 2
+        y = max(work_top + 20, work_top + (work_h - height) // 2)
         self._root.geometry(f"{width}x{height}+{x}+{y}")
+
+    def _get_monitor_work_area(self):
+        """Return the taskbar-excluded work area of the window's current monitor."""
+        if sys.platform != "win32":
+            return 0, 0, self._root.winfo_screenwidth(), self._root.winfo_screenheight()
+        try:
+            class RECT(ctypes.Structure):
+                _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long), ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+
+            class MONITORINFO(ctypes.Structure):
+                _fields_ = [("cbSize", ctypes.c_ulong), ("rcMonitor", RECT), ("rcWork", RECT), ("dwFlags", ctypes.c_ulong)]
+
+            monitor = ctypes.windll.user32.MonitorFromWindow(self._root.winfo_id(), 2)
+            info = MONITORINFO()
+            info.cbSize = ctypes.sizeof(MONITORINFO)
+            if ctypes.windll.user32.GetMonitorInfoW(monitor, ctypes.byref(info)):
+                return info.rcWork.left, info.rcWork.top, info.rcWork.right, info.rcWork.bottom
+        except Exception:
+            pass
+        return 0, 0, self._root.winfo_screenwidth(), self._root.winfo_screenheight()
+
+    def _schedule_monitor_update(self, event):
+        if event.widget is not self._root:
+            return
+        if self._monitor_update_id:
+            self._root.after_cancel(self._monitor_update_id)
+        self._monitor_update_id = self._root.after(150, self._update_monitor_limits)
+
+    def _update_monitor_limits(self):
+        self._monitor_update_id = None
+        left, top, right, bottom = self._get_monitor_work_area()
+        self._root.maxsize(max(360, min(680, right - left - 48)), max(300, bottom - top - 48))
+
+    def _update_scroll_region(self, event=None):
+        if self._scroll_canvas:
+            self._scroll_canvas.configure(scrollregion=self._scroll_canvas.bbox("all"))
+
+    def _resize_scroll_content(self, event):
+        if self._scroll_canvas and self._scroll_window_id:
+            self._scroll_canvas.itemconfigure(self._scroll_window_id, width=event.width)
+
+    def _on_mousewheel(self, event):
+        if self._scroll_canvas and self._scroll_canvas.winfo_height() < self._scroll_canvas.bbox("all")[3]:
+            self._scroll_canvas.yview_scroll(-int(event.delta / 120), "units")
 
     def _add_preview(self, parent, key: str, value: int):
         preview = tk.Canvas(parent, width=100, height=80, highlightthickness=1, highlightbackground="#D8E1EE", bg="#FFFFFF")
