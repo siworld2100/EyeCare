@@ -7,6 +7,7 @@ import ctypes
 import tkinter as tk
 from tkinter import ttk
 from typing import Callable
+from PIL import Image, ImageTk
 
 
 def _get_base_path():
@@ -16,6 +17,7 @@ def _get_base_path():
 
 
 _ICON_PATH = os.path.join(_get_base_path(), "eye_care.ico")
+_REWARD_CODE_PATH = os.path.join(_get_base_path(), "eye_care", "assets", "reward_code.png")
 
 
 class MessageDialog:
@@ -59,6 +61,71 @@ def show_info(parent, title, message):
 
 def show_error(parent, title, message):
     return MessageDialog(parent, title, message, "error").show()
+
+
+class UsageDialog:
+    """A concise usage guide with an optional reward-code reveal."""
+
+    def __init__(self, parent):
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title("护眼程序 - 使用说明")
+        self.dialog.resizable(False, False)
+        self.dialog.transient(parent)
+        self.dialog.grab_set()
+        if os.path.exists(_ICON_PATH):
+            self.dialog.iconbitmap(_ICON_PATH)
+
+        frame = ttk.Frame(self.dialog, padding=20)
+        frame.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(frame, text="护眼程序", font=("Microsoft YaHei", 15, "bold")).pack()
+        ttk.Label(frame, text="简单使用说明", font=("Microsoft YaHei", 10)).pack(pady=(4, 14))
+        instructions = (
+            "本程序通过定时休息和眨眼提醒，帮助缓解长时间用眼疲劳。\n\n"
+            "使用方法：\n"
+            "1. 在托盘图标的菜单中打开“设置”。\n"
+            "2. 设置休息间隔、休息时长和遮罩不透明度。\n"
+            "3. 设置眨眼提醒的间隔、显示时长和不透明度。\n"
+            "4. 休息遮罩出现后，可点击“跳过”或按 Esc 结束。\n"
+            "5. 开会时可在设置中暂停所有提醒。"
+        )
+        ttk.Label(frame, text=instructions, justify=tk.LEFT, font=("Microsoft YaHei", 9), wraplength=390).pack(anchor=tk.W)
+        ttk.Separator(frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=(16, 12))
+
+        reward_area = ttk.Frame(frame)
+        reward_area.pack(fill=tk.X)
+        self._qr_label = ttk.Label(reward_area)
+        self._qr_label.pack(side=tk.LEFT)
+        right_area = ttk.Frame(reward_area)
+        right_area.pack(side=tk.RIGHT, anchor=tk.N)
+        ttk.Label(right_area, text="开发者：EyeCare Team", font=("Microsoft YaHei", 9)).pack(anchor=tk.E, pady=(2, 16))
+        self._reward_button = ttk.Button(right_area, text="赞赏作者", width=14, command=self._show_reward_code)
+        self._reward_button.pack(anchor=tk.E)
+
+        self.dialog.bind("<Escape>", lambda event: self.dialog.destroy())
+        self.dialog.update_idletasks()
+        x = parent.winfo_x() + (parent.winfo_width() - self.dialog.winfo_width()) // 2
+        y = parent.winfo_y() + (parent.winfo_height() - self.dialog.winfo_height()) // 2
+        self.dialog.geometry(f"+{x}+{y}")
+        self.dialog.lift()
+        self.dialog.focus_force()
+        self._reward_photo = None
+
+    def _show_reward_code(self):
+        if self._reward_photo is not None:
+            return
+        try:
+            with Image.open(_REWARD_CODE_PATH) as source:
+                image = source.convert("RGBA")
+                image.thumbnail((160, 160), Image.LANCZOS)
+                self._reward_photo = ImageTk.PhotoImage(image)
+            self._qr_label.configure(image=self._reward_photo)
+            self._reward_button.configure(text="感谢大佬支持")
+            self.dialog.update_idletasks()
+        except OSError:
+            self._reward_button.configure(text="赞赏码不可用", state=tk.DISABLED)
+
+    def show(self):
+        self.dialog.wait_window()
 
 
 class SettingsGUI:
@@ -119,11 +186,15 @@ class SettingsGUI:
         # Pack the footer at the bottom so it remains available on smaller screens.
         btn_frame = ttk.Frame(self._root, style="Page.TFrame", padding=(16, 4, 16, 14))
         btn_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        ttk.Button(btn_frame, text="使用说明", command=self._open_usage, width=10).pack(side=tk.LEFT)
         ttk.Button(btn_frame, text="取消", command=self._on_close, width=10).pack(side=tk.RIGHT, padx=(6, 0))
         ttk.Button(btn_frame, text="保存", command=self._on_save_click, width=10).pack(side=tk.RIGHT)
 
         self._fit_to_screen()
         self._root.bind("<Configure>", self._schedule_monitor_update, add="+")
+
+    def _open_usage(self):
+        UsageDialog(self._root).show()
 
     def _configure_styles(self):
         style = ttk.Style(self._root)
