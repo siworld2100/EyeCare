@@ -78,18 +78,8 @@ class UsageDialog:
         frame = ttk.Frame(self.dialog, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
         ttk.Label(frame, text="护眼程序", font=("Microsoft YaHei", 15, "bold")).pack()
-        ttk.Label(frame, text="设计理念与使用建议", font=("Microsoft YaHei", 10)).pack(pady=(4, 14))
-        instructions = (
-            "设计理念：护眼并不是短时间的强制中断，而是在持续专注中，"
-            "通过规律休息、远眺和完整眨眼，为眼睛留出恢复的时间。\n\n"
-            "使用建议：\n"
-            "1. 打开程序后，它会默认运行在系统托盘；需要调整时，在托盘菜单中打开“设置”。\n"
-            "2. 默认的休息节奏已按日常办公场景设置，可直接使用，再按个人习惯微调。\n"
-            "3. 每连续用眼约 20 分钟，建议在工位上向 6 米以外远眺片刻，帮助放松视疲劳。\n"
-            "4. 眨眼提醒建议至少显示 2 秒；借此进行一次缓慢、完整的深度眨眼，有助于缓解干涩感。\n"
-            "5. 临时开会、演示或不希望出现遮罩时，勾选“暂停所有提醒”；结束后取消勾选即可恢复。"
-        )
-        ttk.Label(frame, text=instructions, justify=tk.LEFT, font=("Microsoft YaHei", 9), wraplength=430).pack(anchor=tk.W)
+        ttk.Label(frame, text="程序说明", font=("Microsoft YaHei", 10)).pack(pady=(4, 12))
+        self._add_program_description(frame)
         ttk.Separator(frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=(16, 12))
 
         reward_area = ttk.Frame(frame)
@@ -110,6 +100,43 @@ class UsageDialog:
         self.dialog.lift()
         self.dialog.focus_force()
         self._reward_photo = None
+
+    @staticmethod
+    def _add_program_description(parent):
+        """Render instructions in a fixed-width, word-wrapped reading area."""
+        description = tk.Text(
+            parent,
+            width=50,
+            height=15,
+            wrap=tk.WORD,
+            relief=tk.FLAT,
+            borderwidth=0,
+            background="#F5F7FB",
+            foreground="#1F2937",
+            font=("Microsoft YaHei", 10),
+            padx=2,
+            pady=2,
+        )
+        description.tag_configure("heading", font=("Microsoft YaHei", 10, "bold"), foreground="#1D3557", spacing1=2, spacing3=6)
+        description.tag_configure("body", spacing1=2, spacing3=7, lmargin1=2, lmargin2=2)
+        description.insert(tk.END, "设计理念\n", "heading")
+        description.insert(
+            tk.END,
+            "护眼并不是短时间的强制中断，而是在持续专注中，通过规律休息、远眺和完整眨眼，为眼睛留出恢复的时间。\n\n",
+            "body",
+        )
+        description.insert(tk.END, "程序说明\n", "heading")
+        items = (
+            "1. 打开程序后，它会默认运行在系统托盘；需要调整时，在托盘菜单中打开“设置”。",
+            "2. 默认的休息节奏已按日常办公场景设置，可直接使用，再按个人习惯微调。",
+            "3. 每连续用眼约 20 分钟，建议在工位上向 6 米以外远眺片刻，帮助放松视疲劳。",
+            "4. 眨眼提醒建议至少显示 2 秒；借此进行一次缓慢、完整的深度眨眼，有助于缓解干涩感。",
+            "5. 临时开会、演示或不希望出现遮罩时，勾选“暂停所有提醒”；结束后取消勾选即可恢复。",
+        )
+        for item in items:
+            description.insert(tk.END, f"{item}\n", "body")
+        description.configure(state=tk.DISABLED)
+        description.pack(fill=tk.X, expand=False)
 
     def _show_reward_code(self):
         if self._reward_photo is not None:
