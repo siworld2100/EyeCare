@@ -80,7 +80,7 @@ class SettingsGUI:
         self._root = tk.Toplevel(master) if master else tk.Toplevel()
         self._root.title("护眼程序 - 设置")
         self._root.configure(bg="#F5F7FB")
-        self._root.resizable(True, False)
+        self._root.resizable(True, True)
         self._root.protocol("WM_DELETE_WINDOW", self._on_close)
         if os.path.exists(_ICON_PATH):
             self._root.iconbitmap(_ICON_PATH)
