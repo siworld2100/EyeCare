@@ -78,17 +78,18 @@ class UsageDialog:
         frame = ttk.Frame(self.dialog, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
         ttk.Label(frame, text="护眼程序", font=("Microsoft YaHei", 15, "bold")).pack()
-        ttk.Label(frame, text="简单使用说明", font=("Microsoft YaHei", 10)).pack(pady=(4, 14))
+        ttk.Label(frame, text="设计理念与使用建议", font=("Microsoft YaHei", 10)).pack(pady=(4, 14))
         instructions = (
-            "本程序通过定时休息和眨眼提醒，帮助缓解长时间用眼疲劳。\n\n"
-            "使用方法：\n"
-            "1. 在托盘图标的菜单中打开“设置”。\n"
-            "2. 设置休息间隔、休息时长和遮罩不透明度。\n"
-            "3. 设置眨眼提醒的间隔、显示时长和不透明度。\n"
-            "4. 休息遮罩出现后，可点击“跳过”或按 Esc 结束。\n"
-            "5. 开会时可在设置中暂停所有提醒。"
+            "设计理念：护眼并不是短时间的强制中断，而是在持续专注中，"
+            "通过规律休息、远眺和完整眨眼，为眼睛留出恢复的时间。\n\n"
+            "使用建议：\n"
+            "1. 打开程序后，它会默认运行在系统托盘；需要调整时，在托盘菜单中打开“设置”。\n"
+            "2. 默认的休息节奏已按日常办公场景设置，可直接使用，再按个人习惯微调。\n"
+            "3. 每连续用眼约 20 分钟，建议在工位上向 6 米以外远眺片刻，帮助放松视疲劳。\n"
+            "4. 眨眼提醒建议至少显示 2 秒；借此进行一次缓慢、完整的深度眨眼，有助于缓解干涩感。\n"
+            "5. 临时开会、演示或不希望出现遮罩时，勾选“暂停所有提醒”；结束后取消勾选即可恢复。"
         )
-        ttk.Label(frame, text=instructions, justify=tk.LEFT, font=("Microsoft YaHei", 9), wraplength=390).pack(anchor=tk.W)
+        ttk.Label(frame, text=instructions, justify=tk.LEFT, font=("Microsoft YaHei", 9), wraplength=430).pack(anchor=tk.W)
         ttk.Separator(frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=(16, 12))
 
         reward_area = ttk.Frame(frame)
@@ -97,7 +98,7 @@ class UsageDialog:
         self._qr_label.pack(side=tk.LEFT)
         right_area = ttk.Frame(reward_area)
         right_area.pack(side=tk.RIGHT, anchor=tk.N)
-        ttk.Label(right_area, text="开发者：EyeCare Team", font=("Microsoft YaHei", 9)).pack(anchor=tk.E, pady=(2, 16))
+        ttk.Label(right_area, text="开发者：龙华", font=("Microsoft YaHei", 9)).pack(anchor=tk.E, pady=(2, 16))
         self._reward_button = ttk.Button(right_area, text="赞赏作者", width=14, command=self._show_reward_code)
         self._reward_button.pack(anchor=tk.E)
 
@@ -112,6 +113,9 @@ class UsageDialog:
 
     def _show_reward_code(self):
         if self._reward_photo is not None:
+            self._qr_label.configure(image="")
+            self._reward_photo = None
+            self._reward_button.configure(text="赞赏作者")
             return
         try:
             with Image.open(_REWARD_CODE_PATH) as source:
