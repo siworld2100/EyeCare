@@ -18,6 +18,7 @@ def _get_base_path():
 
 _ICON_PATH = os.path.join(_get_base_path(), "eye_care.ico")
 _REWARD_CODE_PATH = os.path.join(_get_base_path(), "eye_care", "assets", "reward_code.png")
+_USAGE_TEXT_PATH = os.path.join(_get_base_path(), "eye_care", "assets", "usage.txt")
 
 
 class MessageDialog:
@@ -103,7 +104,12 @@ class UsageDialog:
 
     @staticmethod
     def _add_program_description(parent):
-        """Render instructions in a fixed-width, word-wrapped reading area."""
+        """Render the independently maintained plain-text program description."""
+        try:
+            with open(_USAGE_TEXT_PATH, "r", encoding="utf-8") as source:
+                content = source.read()
+        except OSError:
+            content = "程序说明文件暂时不可用。"
         description = tk.Text(
             parent,
             width=50,
@@ -117,25 +123,9 @@ class UsageDialog:
             padx=2,
             pady=2,
         )
-        description.tag_configure("heading", font=("Microsoft YaHei", 10, "bold"), foreground="#1D3557", spacing1=2, spacing3=6)
-        description.tag_configure("body", spacing1=2, spacing3=7, lmargin1=2, lmargin2=2)
-        description.insert(tk.END, "设计理念\n", "heading")
-        description.insert(
-            tk.END,
-            "护眼并不是短时间的强制中断，而是在持续专注中，通过规律休息、远眺和完整眨眼，为眼睛留出恢复的时间。\n\n",
-            "body",
-        )
-        description.insert(tk.END, "程序说明\n", "heading")
-        items = (
-            "1. 打开程序后，它会默认运行在系统托盘；需要调整时，在托盘菜单中打开“设置”。",
-            "2. 默认的休息节奏已按日常办公场景设置，可直接使用，再按个人习惯微调。",
-            "3. 每连续用眼约 20 分钟，建议在工位上向 6 米以外远眺片刻，帮助放松视疲劳。",
-            "4. 眨眼提醒建议至少显示 2 秒；借此进行一次缓慢、完整的深度眨眼，有助于缓解干涩感。",
-            "5. 临时开会、演示或不希望出现遮罩时，勾选“暂停所有提醒”；结束后取消勾选即可恢复。",
-        )
-        for item in items:
-            description.insert(tk.END, f"{item}\n", "body")
+        description.insert("1.0", content)
         description.configure(state=tk.DISABLED)
+        description.yview_moveto(0)
         description.pack(fill=tk.X, expand=False)
 
     def _show_reward_code(self):
