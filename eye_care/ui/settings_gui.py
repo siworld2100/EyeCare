@@ -115,7 +115,7 @@ class SettingsGUI:
         btn_frame = ttk.Frame(self._root, style="Page.TFrame", padding=(16, 4, 16, 14))
         btn_frame.pack(side=tk.BOTTOM, fill=tk.X)
         ttk.Button(btn_frame, text="取消", command=self._on_close, width=10).pack(side=tk.RIGHT, padx=(6, 0))
-        ttk.Button(btn_frame, text="保存", command=self._on_save_click, style="Accent.TButton", width=10).pack(side=tk.RIGHT)
+        ttk.Button(btn_frame, text="保存", command=self._on_save_click, width=10).pack(side=tk.RIGHT)
 
         self._fit_to_screen()
 
@@ -124,8 +124,6 @@ class SettingsGUI:
         style.configure("Page.TFrame", background="#F5F7FB")
         style.configure("Settings.TLabelframe", background="#F5F7FB")
         style.configure("Settings.TLabelframe.Label", background="#F5F7FB", foreground="#1D3557", font=("Microsoft YaHei", 10, "bold"))
-        style.configure("Accent.TButton", font=("Microsoft YaHei", 9, "bold"), padding=(8, 5))
-        style.map("Accent.TButton", foreground=[("!disabled", "#FFFFFF")], background=[("!disabled", "#2F80ED"), ("active", "#1769C2")])
 
     def _fit_to_screen(self):
         self._root.update_idletasks()
