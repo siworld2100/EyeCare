@@ -69,8 +69,6 @@ class SettingsGUI:
         self._root: tk.Toplevel | None = None
         self._entries = {}
         self._color_previews = {}
-        self._scroll_canvas: tk.Canvas | None = None
-        self._scroll_window_id = None
         self._monitor_update_id = None
 
     def show(self, settings: dict, master: tk.Tk = None):
@@ -89,19 +87,8 @@ class SettingsGUI:
         self._root.attributes("-topmost", True)
         self._configure_styles()
 
-        # Keep the original section order, but make the body scrollable on short screens.
-        body = ttk.Frame(self._root, style="Page.TFrame")
-        body.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-        self._scroll_canvas = tk.Canvas(body, bg="#F5F7FB", highlightthickness=0, borderwidth=0)
-        scrollbar = ttk.Scrollbar(body, orient=tk.VERTICAL, command=self._scroll_canvas.yview)
-        self._scroll_canvas.configure(yscrollcommand=scrollbar.set)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self._scroll_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        content = ttk.Frame(self._scroll_canvas, style="Page.TFrame")
-        self._scroll_window_id = self._scroll_canvas.create_window((0, 0), window=content, anchor=tk.NW)
-        content.bind("<Configure>", self._update_scroll_region)
-        self._scroll_canvas.bind("<Configure>", self._resize_scroll_content)
-        self._root.bind("<MouseWheel>", self._on_mousewheel)
+        content = ttk.Frame(self._root, style="Page.TFrame")
+        content.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
         # Original structure: rest settings, blink settings, system settings, then actions.
         rest_frame = ttk.LabelFrame(content, text="休息设置", style="Settings.TLabelframe", padding=12)
@@ -150,6 +137,8 @@ class SettingsGUI:
         work_w, work_h = work_right - work_left, work_bottom - work_top
         max_width = max(360, min(680, work_w - 48))
         max_height = max(300, work_h - 48)
+        self._apply_dpi_scaling(max_width, max_height)
+        self._root.update_idletasks()
         width = min(max(520, self._root.winfo_reqwidth()), max_width)
         height = min(max(450, self._root.winfo_reqheight()), max_height)
         self._root.minsize(min(440, width), min(300, height))
@@ -157,6 +146,26 @@ class SettingsGUI:
         x = work_left + (work_w - width) // 2
         y = max(work_top + 20, work_top + (work_h - height) // 2)
         self._root.geometry(f"{width}x{height}+{x}+{y}")
+
+    def _apply_dpi_scaling(self, available_width, available_height):
+        """Use the active monitor DPI, then reduce proportionally only if needed."""
+        dpi = self._get_window_dpi()
+        base_scale = dpi / 72.0
+        self._root.tk.call("tk", "scaling", base_scale)
+        self._root.update_idletasks()
+        required_width = self._root.winfo_reqwidth()
+        required_height = self._root.winfo_reqheight()
+        fit = min(1.0, available_width / required_width, available_height / required_height)
+        if fit < 1.0:
+            self._root.tk.call("tk", "scaling", base_scale * fit)
+
+    def _get_window_dpi(self):
+        if sys.platform == "win32":
+            try:
+                return ctypes.windll.user32.GetDpiForWindow(self._root.winfo_id())
+            except Exception:
+                pass
+        return self._root.winfo_fpixels("1i")
 
     def _get_monitor_work_area(self):
         """Return the taskbar-excluded work area of the window's current monitor."""
@@ -188,19 +197,10 @@ class SettingsGUI:
     def _update_monitor_limits(self):
         self._monitor_update_id = None
         left, top, right, bottom = self._get_monitor_work_area()
-        self._root.maxsize(max(360, min(680, right - left - 48)), max(300, bottom - top - 48))
-
-    def _update_scroll_region(self, event=None):
-        if self._scroll_canvas:
-            self._scroll_canvas.configure(scrollregion=self._scroll_canvas.bbox("all"))
-
-    def _resize_scroll_content(self, event):
-        if self._scroll_canvas and self._scroll_window_id:
-            self._scroll_canvas.itemconfigure(self._scroll_window_id, width=event.width)
-
-    def _on_mousewheel(self, event):
-        if self._scroll_canvas and self._scroll_canvas.winfo_height() < self._scroll_canvas.bbox("all")[3]:
-            self._scroll_canvas.yview_scroll(-int(event.delta / 120), "units")
+        max_width = max(360, min(680, right - left - 48))
+        max_height = max(300, bottom - top - 48)
+        self._apply_dpi_scaling(max_width, max_height)
+        self._root.maxsize(max_width, max_height)
 
     def _add_preview(self, parent, key: str, value: int):
         preview = tk.Canvas(parent, width=100, height=80, highlightthickness=1, highlightbackground="#D8E1EE", bg="#FFFFFF")
