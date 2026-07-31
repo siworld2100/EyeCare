@@ -217,11 +217,18 @@ class SettingsGUI:
 
     def _add_slider(self, parent, label: str, key: str, default: int, row: int):
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky=tk.W, pady=5)
-        value_var = tk.IntVar(value=default)
+        value_var = tk.DoubleVar(value=default)
+        display_var = tk.StringVar(value=str(int(round(default))))
         slider = ttk.Scale(parent, from_=0, to=100, variable=value_var, orient=tk.HORIZONTAL, length=110)
         slider.grid(row=row, column=1, sticky=tk.E, pady=5, padx=(12, 0))
-        ttk.Label(parent, textvariable=value_var, width=4).grid(row=row, column=2, padx=(8, 0), pady=5)
-        value_var.trace_add("write", lambda *_: self._update_color_preview(key, value_var.get()))
+        ttk.Label(parent, textvariable=display_var, width=4).grid(row=row, column=2, padx=(8, 0), pady=5)
+
+        def sync_opacity(*_):
+            value = int(round(value_var.get()))
+            display_var.set(str(value))
+            self._update_color_preview(key, value)
+
+        value_var.trace_add("write", sync_opacity)
         self._entries[key] = value_var
 
     def _update_color_preview(self, key: str, value: int):
@@ -236,8 +243,8 @@ class SettingsGUI:
 
     def _get_value(self, key: str, is_float: bool = False):
         widget = self._entries.get(key)
-        if isinstance(widget, tk.IntVar):
-            return widget.get()
+        if isinstance(widget, (tk.IntVar, tk.DoubleVar)):
+            return int(round(widget.get()))
         text = widget.get().strip()
         return float(text) if is_float else int(text)
 
