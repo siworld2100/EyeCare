@@ -114,7 +114,7 @@ class UsageDialog:
             parent,
             width=50,
             height=15,
-            wrap=tk.WORD,
+            wrap=tk.CHAR,
             relief=tk.FLAT,
             borderwidth=0,
             background="#F5F7FB",
