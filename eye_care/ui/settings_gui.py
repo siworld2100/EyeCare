@@ -1,4 +1,4 @@
-"""EyeCare settings window."""
+"""Settings window for EyeCare."""
 
 import math
 import os
@@ -18,8 +18,6 @@ _ICON_PATH = os.path.join(_get_base_path(), "eye_care.ico")
 
 
 class MessageDialog:
-    """A small modal dialog centred over its parent."""
-
     def __init__(self, parent, title, message, msg_type="info"):
         self.result = None
         self.dialog = tk.Toplevel(parent)
@@ -32,11 +30,10 @@ class MessageDialog:
 
         frame = ttk.Frame(self.dialog, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
-        heading = "输入有误" if msg_type == "error" else "已保存"
+        heading = "输入有误" if msg_type == "error" else "设置已保存"
         ttk.Label(frame, text=heading, font=("Microsoft YaHei", 14, "bold")).pack(pady=(0, 10))
-        ttk.Label(frame, text=message, font=("Microsoft YaHei", 10), wraplength=320).pack(pady=(0, 15))
+        ttk.Label(frame, text=message, font=("Microsoft YaHei", 10), wraplength=300).pack(pady=(0, 15))
         ttk.Button(frame, text="确定", command=self._on_ok, width=10).pack()
-
         self.dialog.bind("<Return>", lambda event: self._on_ok())
         self.dialog.bind("<Escape>", lambda event: self._on_ok())
         self.dialog.update_idletasks()
@@ -64,7 +61,7 @@ def show_error(parent, title, message):
 
 
 class SettingsGUI:
-    """Responsive, compact settings window."""
+    """Settings UI retaining the original four-section layout."""
 
     def __init__(self, on_save: Callable = None):
         self._on_save = on_save
@@ -79,94 +76,76 @@ class SettingsGUI:
             return
 
         self._root = tk.Toplevel(master) if master else tk.Toplevel()
-        self._root.title("护眼程序 · 设置")
+        self._root.title("护眼程序 - 设置")
         self._root.configure(bg="#F5F7FB")
-        self._root.resizable(True, True)
+        self._root.resizable(True, False)
         self._root.protocol("WM_DELETE_WINDOW", self._on_close)
         if os.path.exists(_ICON_PATH):
             self._root.iconbitmap(_ICON_PATH)
         self._root.attributes("-topmost", True)
         self._configure_styles()
 
-        header = ttk.Frame(self._root, style="Page.TFrame", padding=(18, 16, 18, 8))
-        header.pack(fill=tk.X)
-        ttk.Label(header, text="护眼设置", style="Title.TLabel").pack(anchor=tk.W)
-        ttk.Label(header, text="调整提醒节奏，让眼睛在忙碌中也能得到休息。", style="Subtitle.TLabel").pack(anchor=tk.W, pady=(3, 0))
+        # Original structure: rest settings, blink settings, system settings, then actions.
+        rest_frame = ttk.LabelFrame(self._root, text="休息设置", style="Settings.TLabelframe", padding=12)
+        rest_frame.pack(fill=tk.X, padx=16, pady=(16, 6))
+        rest_left = ttk.Frame(rest_frame, style="Page.TFrame")
+        rest_left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self._add_field(rest_left, "休息间隔（分钟）", "rest_interval", settings.get("rest_interval", 20), 0)
+        self._add_field(rest_left, "休息时长（秒）", "rest_duration", settings.get("rest_duration", 20), 1)
+        self._add_slider(rest_left, "不透明度（%）", "rest_opacity", settings.get("rest_opacity", 70), 2)
+        self._add_preview(rest_frame, "rest_opacity", settings.get("rest_opacity", 70))
 
-        content = ttk.Frame(self._root, style="Page.TFrame", padding=(18, 4, 18, 0))
-        content.pack(fill=tk.BOTH, expand=True)
-        notebook = ttk.Notebook(content, style="Settings.TNotebook")
-        notebook.pack(fill=tk.X)
+        blink_frame = ttk.LabelFrame(self._root, text="眨眼设置", style="Settings.TLabelframe", padding=12)
+        blink_frame.pack(fill=tk.X, padx=16, pady=6)
+        blink_left = ttk.Frame(blink_frame, style="Page.TFrame")
+        blink_left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self._add_field(blink_left, "提醒间隔（秒）", "blink_interval", settings.get("blink_interval", 45), 0)
+        self._add_field(blink_left, "显示时长（秒）", "blink_duration", settings.get("blink_duration", 2.0), 1)
+        self._add_slider(blink_left, "不透明度（%）", "blink_opacity", settings.get("blink_opacity", 100), 2)
+        self._add_preview(blink_frame, "blink_opacity", settings.get("blink_opacity", 100))
 
-        rest_tab = ttk.Frame(notebook, style="Page.TFrame", padding=14)
-        blink_tab = ttk.Frame(notebook, style="Page.TFrame", padding=14)
-        notebook.add(rest_tab, text=" 定时休息 ")
-        notebook.add(blink_tab, text=" 眨眼提醒 ")
-        self._create_reminder_tab(
-            rest_tab,
-            settings,
-            ("休息间隔（分钟）", "rest_interval", 20),
-            ("休息时长（秒）", "rest_duration", 20),
-            "rest_opacity",
-        )
-        self._create_reminder_tab(
-            blink_tab,
-            settings,
-            ("提醒间隔（秒）", "blink_interval", 45),
-            ("显示时长（秒）", "blink_duration", 2.0),
-            "blink_opacity",
-        )
-
-        preferences = ttk.LabelFrame(content, text="使用偏好", style="Card.TLabelframe", padding=(12, 8))
-        preferences.pack(fill=tk.X, pady=(12, 0))
+        sys_frame = ttk.LabelFrame(self._root, text="系统设置", style="Settings.TLabelframe", padding=10)
+        sys_frame.pack(fill=tk.X, padx=16, pady=(6, 10))
         self._paused_var = tk.BooleanVar(value=settings.get("paused", False))
-        ttk.Checkbutton(preferences, text="暂停所有提醒（适合会议或专注时使用）", variable=self._paused_var).pack(anchor=tk.W, pady=2)
+        ttk.Checkbutton(sys_frame, text="暂停所有提醒（开会时使用）", variable=self._paused_var).pack(anchor=tk.W, pady=2)
         self._autostart_var = tk.BooleanVar(value=settings.get("autostart", False))
-        ttk.Checkbutton(preferences, text="开机自动启动", variable=self._autostart_var).pack(anchor=tk.W, pady=2)
+        ttk.Checkbutton(sys_frame, text="开机自动启动", variable=self._autostart_var).pack(anchor=tk.W, pady=2)
 
-        footer = ttk.Frame(self._root, style="Page.TFrame", padding=(18, 14))
-        footer.pack(fill=tk.X)
-        ttk.Button(footer, text="取消", command=self._on_close).pack(side=tk.RIGHT)
-        ttk.Button(footer, text="保存设置", command=self._on_save_click, style="Accent.TButton").pack(side=tk.RIGHT, padx=(0, 8))
+        # Pack the footer at the bottom so it remains available on smaller screens.
+        btn_frame = ttk.Frame(self._root, style="Page.TFrame", padding=(16, 4, 16, 14))
+        btn_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        ttk.Button(btn_frame, text="取消", command=self._on_close, width=10).pack(side=tk.RIGHT, padx=(6, 0))
+        ttk.Button(btn_frame, text="保存", command=self._on_save_click, style="Accent.TButton", width=10).pack(side=tk.RIGHT)
 
         self._fit_to_screen()
 
     def _configure_styles(self):
         style = ttk.Style(self._root)
         style.configure("Page.TFrame", background="#F5F7FB")
-        style.configure("Title.TLabel", background="#F5F7FB", foreground="#1D3557", font=("Microsoft YaHei", 18, "bold"))
-        style.configure("Subtitle.TLabel", background="#F5F7FB", foreground="#637083", font=("Microsoft YaHei", 9))
-        style.configure("Card.TLabelframe", background="#F5F7FB")
-        style.configure("Card.TLabelframe.Label", background="#F5F7FB", foreground="#1D3557", font=("Microsoft YaHei", 10, "bold"))
-        style.configure("Accent.TButton", font=("Microsoft YaHei", 9, "bold"), padding=(14, 6))
+        style.configure("Settings.TLabelframe", background="#F5F7FB")
+        style.configure("Settings.TLabelframe.Label", background="#F5F7FB", foreground="#1D3557", font=("Microsoft YaHei", 10, "bold"))
+        style.configure("Accent.TButton", font=("Microsoft YaHei", 9, "bold"), padding=(8, 5))
         style.map("Accent.TButton", foreground=[("!disabled", "#FFFFFF")], background=[("!disabled", "#2F80ED"), ("active", "#1769C2")])
-        style.configure("Settings.TNotebook", background="#F5F7FB")
-
-    def _create_reminder_tab(self, parent, settings, first_field, second_field, opacity_key):
-        fields = ttk.Frame(parent, style="Page.TFrame")
-        fields.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        self._add_field(fields, *first_field, row=0)
-        self._add_field(fields, *second_field, row=1)
-        self._add_slider(fields, "遮罩不透明度", opacity_key, settings.get(opacity_key, 70), 2)
-
-        preview = tk.Canvas(parent, width=84, height=64, highlightthickness=0, bg="#FFFFFF")
-        preview.pack(side=tk.RIGHT, padx=(16, 0), pady=4)
-        self._color_previews[opacity_key] = preview
-        self._update_color_preview(opacity_key, settings.get(opacity_key, 70))
 
     def _fit_to_screen(self):
         self._root.update_idletasks()
         screen_w, screen_h = self._root.winfo_screenwidth(), self._root.winfo_screenheight()
-        width = min(max(470, self._root.winfo_reqwidth()), max(320, screen_w - 80))
-        height = min(max(380, self._root.winfo_reqheight()), max(260, screen_h - 80))
-        self._root.minsize(min(470, width), min(360, height))
+        width = min(max(520, self._root.winfo_reqwidth()), max(360, screen_w - 80))
+        height = min(max(450, self._root.winfo_reqheight()), max(300, screen_h - 80))
+        self._root.minsize(min(440, width), min(300, height))
         x = (screen_w - width) // 2
         y = max(20, (screen_h - height) // 2)
         self._root.geometry(f"{width}x{height}+{x}+{y}")
 
+    def _add_preview(self, parent, key: str, value: int):
+        preview = tk.Canvas(parent, width=100, height=80, highlightthickness=1, highlightbackground="#D8E1EE", bg="#FFFFFF")
+        preview.pack(side=tk.RIGHT, padx=(12, 0))
+        self._color_previews[key] = preview
+        self._update_color_preview(key, value)
+
     def _add_field(self, parent, label: str, key: str, default, row: int):
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky=tk.W, pady=5)
-        entry = ttk.Entry(parent, width=14)
+        entry = ttk.Entry(parent, width=15)
         entry.insert(0, str(default))
         entry.grid(row=row, column=1, sticky=tk.E, pady=5, padx=(12, 0))
         self._entries[key] = entry
@@ -174,7 +153,8 @@ class SettingsGUI:
     def _add_slider(self, parent, label: str, key: str, default: int, row: int):
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky=tk.W, pady=5)
         value_var = tk.IntVar(value=default)
-        ttk.Scale(parent, from_=0, to=100, variable=value_var, orient=tk.HORIZONTAL, length=120).grid(row=row, column=1, sticky=tk.E, pady=5, padx=(12, 0))
+        slider = ttk.Scale(parent, from_=0, to=100, variable=value_var, orient=tk.HORIZONTAL, length=110)
+        slider.grid(row=row, column=1, sticky=tk.E, pady=5, padx=(12, 0))
         ttk.Label(parent, textvariable=value_var, width=4).grid(row=row, column=2, padx=(8, 0), pady=5)
         value_var.trace_add("write", lambda *_: self._update_color_preview(key, value_var.get()))
         self._entries[key] = value_var
@@ -186,8 +166,8 @@ class SettingsGUI:
         gray = int(255 - (value / 100) * 255)
         color = f"#{gray:02x}{gray:02x}{gray:02x}"
         canvas.delete("all")
-        canvas.create_rectangle(0, 0, 84, 64, fill=color, outline="")
-        canvas.create_text(42, 32, text=f"{value}%", fill="#FFFFFF" if value > 55 else "#334155", font=("Microsoft YaHei", 10, "bold"))
+        canvas.create_rectangle(0, 0, 100, 80, fill=color, outline="")
+        canvas.create_text(50, 40, text=f"{value}%", fill="#FFFFFF" if value > 55 else "#334155", font=("Microsoft YaHei", 10, "bold"))
 
     def _get_value(self, key: str, is_float: bool = False):
         widget = self._entries.get(key)
