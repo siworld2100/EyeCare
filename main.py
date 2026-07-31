@@ -7,6 +7,7 @@
 import sys
 import os
 import logging
+from queue import Queue, Empty
 
 # 配置日志
 logging.basicConfig(
@@ -35,6 +36,9 @@ class EyeCareApp:
         # tkinter 主窗口（隐藏，仅用于事件循环）
         self._root = tk.Tk()
         self._root.withdraw()
+        self._ui_actions = Queue()
+        self._closing = False
+        self._root.after(50, self._process_ui_actions)
 
         # 配置管理
         self.config_manager = ConfigManager()
@@ -43,8 +47,8 @@ class EyeCareApp:
         self.overlay = Overlay(on_skip=self._on_rest_skip)
         self.settings_gui = SettingsGUI(on_save=self._on_settings_save)
         self.tray = TrayManager(
-            on_settings=self._open_settings,
-            on_exit=self._exit_app
+            on_settings=lambda: self._post_ui_action(self._open_settings),
+            on_exit=lambda: self._post_ui_action(self._exit_app)
         )
 
         # 定时器 ID
@@ -54,6 +58,20 @@ class EyeCareApp:
 
         # 同步开机自启状态
         self._sync_autostart()
+
+    def _post_ui_action(self, callback):
+        """Queue work requested by a non-Tk thread for the Tk main thread."""
+        self._ui_actions.put(callback)
+
+    def _process_ui_actions(self):
+        """Run queued tray actions from Tk's event loop."""
+        try:
+            while True:
+                self._ui_actions.get_nowait()()
+        except Empty:
+            pass
+        if not self._closing:
+            self._root.after(50, self._process_ui_actions)
 
     def _sync_autostart(self):
         """同步配置中的开机自启状态到系统"""
@@ -173,11 +191,11 @@ class EyeCareApp:
     def _exit_app(self):
         """退出程序"""
         logger.info("护眼程序退出")
+        self._closing = True
         self.tray.stop()
         self.overlay.hide()
         self._root.quit()
         self._root.destroy()
-        sys.exit(0)
 
 
 def main():

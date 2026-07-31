@@ -39,10 +39,14 @@ class AutoStart:
             # 获取程序路径
             if getattr(sys, 'frozen', False):
                 # 打包后的 exe
-                exe_path = sys.executable
+                exe_path = f'"{sys.executable}"'
             else:
                 # 开发模式
-                exe_path = f'"{sys.executable}" "{os.path.abspath(__file__)}"'
+                main_path = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                    "main.py",
+                )
+                exe_path = f'"{sys.executable}" "{main_path}"'
 
             key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, AUTOSTART_KEY, 0, winreg.KEY_SET_VALUE)
             winreg.SetValueEx(key, APP_NAME, 0, winreg.REG_SZ, exe_path)

@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field, asdict
 import json
+import math
 
 
 @dataclass
@@ -29,8 +30,31 @@ class Settings:
     @classmethod
     def from_dict(cls, data: dict) -> "Settings":
         """从字典创建配置对象，忽略未知字段"""
-        valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
-        filtered = {k: v for k, v in data.items() if k in valid_fields}
+        if not isinstance(data, dict):
+            return cls()
+
+        integer_limits = {
+            "rest_interval": (1, None),
+            "rest_duration": (5, None),
+            "rest_opacity": (0, 100),
+            "blink_interval": (10, None),
+            "blink_opacity": (0, 100),
+        }
+        filtered = {}
+        for key, (minimum, maximum) in integer_limits.items():
+            value = data.get(key)
+            if isinstance(value, int) and not isinstance(value, bool):
+                if value >= minimum and (maximum is None or value <= maximum):
+                    filtered[key] = value
+
+        duration = data.get("blink_duration")
+        if isinstance(duration, (int, float)) and not isinstance(duration, bool):
+            if math.isfinite(duration) and duration >= 0.5:
+                filtered["blink_duration"] = float(duration)
+
+        for key in ("autostart", "paused"):
+            if isinstance(data.get(key), bool):
+                filtered[key] = data[key]
         return cls(**filtered)
 
     def to_json(self) -> str:

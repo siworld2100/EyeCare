@@ -103,6 +103,5 @@ class TrayManager:
     def _menu_exit(self, icon, item):
         """菜单 - 退出"""
         logger.debug("托盘菜单: 退出程序")
-        self.stop()
         if self._on_exit:
             self._on_exit()

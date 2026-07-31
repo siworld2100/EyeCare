@@ -3,6 +3,7 @@
 import os
 import sys
 import logging
+import math
 import tkinter as tk
 from tkinter import ttk
 from typing import Callable
@@ -221,6 +222,8 @@ class SettingsGUI:
                 settings["blink_interval"] = 10
             if settings["blink_duration"] < 0.5:
                 settings["blink_duration"] = 0.5
+            if not math.isfinite(settings["blink_duration"]):
+                raise ValueError("显示时长必须是有限数字")
 
             if self._on_save:
                 self._on_save(settings)

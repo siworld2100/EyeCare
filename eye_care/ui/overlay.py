@@ -4,6 +4,7 @@
 """
 
 import logging
+import math
 import tkinter as tk
 from typing import Callable
 
@@ -58,6 +59,11 @@ class Overlay:
         self._blink_current_alpha = 0
         self._blink_fade_step = 3  # 每步增加的透明度
         self._blink_fade_delay = 20  # 每步间隔（毫秒）
+        total_ms = max(1, int(duration * 1000))
+        fade_ms = min(300, total_ms // 2)
+        fade_steps = max(1, math.ceil(max(opacity, 1) / self._blink_fade_step))
+        self._blink_fade_delay = max(1, fade_ms // fade_steps)
+        self._blink_hold_ms = max(0, total_ms - 2 * fade_ms)
         self._animate_fade_in()
 
     def _animate_fade_in(self):
@@ -72,8 +78,7 @@ class Overlay:
             self._set_alpha(self._blink_current_alpha)
             self._blink_phase = "hold"
             # 保持一段时间后渐出
-            hold_time = int(self._blink_duration * 1000)
-            self._fade_id = self._root.after(hold_time, self._start_fade_out)
+            self._fade_id = self._root.after(self._blink_hold_ms, self._start_fade_out)
         else:
             self._set_alpha(self._blink_current_alpha)
             self._fade_id = self._root.after(self._blink_fade_delay, self._animate_fade_in)
