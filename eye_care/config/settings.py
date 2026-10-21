@@ -1,8 +1,39 @@
-"""配置数据类 - 定义所有程序参数及默认值"""
+"""配置数据类 - 定义所有程序参数、默认值与边界校验规则"""
 
-from dataclasses import dataclass, field, asdict
 import json
 import math
+from dataclasses import asdict, dataclass
+from typing import Any
+
+# 字段 -> (最小值, 最大值, 是否浮点)
+# 统一在此声明，供 from_dict / 数据类 / 界面共用同一套边界，
+# 避免"界面限制一套、加载校验另一套"的双份真相。
+NUMERIC_LIMITS: dict[str, tuple[float, float | None, bool]] = {
+    "rest_interval": (1, None, False),
+    "rest_duration": (5, None, False),
+    "rest_opacity": (0, 100, False),
+    "blink_interval": (10, None, False),
+    "blink_duration": (0.5, None, True),
+    "blink_opacity": (0, 100, False),
+}
+
+BOOLEAN_FIELDS = ("autostart", "paused")
+
+
+def clamp_number(key: str, value: Any) -> int | float | None:
+    """按字段规则校验并归一化数值，非法时返回 None。"""
+    if key not in NUMERIC_LIMITS or isinstance(value, bool):
+        return None
+    if not isinstance(value, (int, float)):
+        return None
+
+    minimum, maximum, is_float = NUMERIC_LIMITS[key]
+    number = float(value)
+    if not math.isfinite(number) or number < minimum:
+        return None
+    if maximum is not None:
+        number = min(number, maximum)
+    return number if is_float else int(round(number))
 
 
 @dataclass
@@ -29,32 +60,20 @@ class Settings:
 
     @classmethod
     def from_dict(cls, data: dict) -> "Settings":
-        """从字典创建配置对象，忽略未知字段"""
+        """从字典创建配置对象，忽略未知字段并对越界值做裁剪。"""
         if not isinstance(data, dict):
             return cls()
 
-        integer_limits = {
-            "rest_interval": (1, None),
-            "rest_duration": (5, None),
-            "rest_opacity": (0, 100),
-            "blink_interval": (10, None),
-            "blink_opacity": (0, 100),
-        }
-        filtered = {}
-        for key, (minimum, maximum) in integer_limits.items():
-            value = data.get(key)
-            if isinstance(value, int) and not isinstance(value, bool):
-                if value >= minimum and (maximum is None or value <= maximum):
-                    filtered[key] = value
+        filtered: dict[str, Any] = {}
+        for key in NUMERIC_LIMITS:
+            value = clamp_number(key, data.get(key))
+            if value is not None:
+                filtered[key] = value
 
-        duration = data.get("blink_duration")
-        if isinstance(duration, (int, float)) and not isinstance(duration, bool):
-            if math.isfinite(duration) and duration >= 0.5:
-                filtered["blink_duration"] = float(duration)
-
-        for key in ("autostart", "paused"):
+        for key in BOOLEAN_FIELDS:
             if isinstance(data.get(key), bool):
                 filtered[key] = data[key]
+
         return cls(**filtered)
 
     def to_json(self) -> str:

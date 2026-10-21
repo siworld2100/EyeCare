@@ -1,24 +1,33 @@
 """Settings window for EyeCare."""
 
-import math
-import os
-import sys
 import ctypes
+import math
+import sys
 import tkinter as tk
 from tkinter import ttk
 from typing import Callable
+
 from PIL import Image, ImageTk
 
+from ..config.settings import NUMERIC_LIMITS
+from ..paths import resource_path
+from .icons import ico_path
 
-def _get_base_path():
-    if getattr(sys, "frozen", False):
-        return sys._MEIPASS
-    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_FONT = "Microsoft YaHei"
+
+_REWARD_CODE_PATH = resource_path("eye_care", "assets", "reward_code.png")
+_USAGE_TEXT_PATH = resource_path("eye_care", "assets", "usage.txt")
 
 
-_ICON_PATH = os.path.join(_get_base_path(), "eye_care.ico")
-_REWARD_CODE_PATH = os.path.join(_get_base_path(), "eye_care", "assets", "reward_code.png")
-_USAGE_TEXT_PATH = os.path.join(_get_base_path(), "eye_care", "assets", "usage.txt")
+def _apply_window_icon(window: tk.Misc) -> None:
+    """统一设置窗口图标（ico 缺失时跳过，不影响窗口创建）。"""
+    path = ico_path()
+    if not path:
+        return
+    try:
+        window.iconbitmap(path)
+    except tk.TclError:
+        pass
 
 
 class MessageDialog:
@@ -29,14 +38,13 @@ class MessageDialog:
         self.dialog.resizable(False, False)
         self.dialog.transient(parent)
         self.dialog.grab_set()
-        if os.path.exists(_ICON_PATH):
-            self.dialog.iconbitmap(_ICON_PATH)
+        _apply_window_icon(self.dialog)
 
         frame = ttk.Frame(self.dialog, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
         heading = "输入有误" if msg_type == "error" else "设置已保存"
-        ttk.Label(frame, text=heading, font=("Microsoft YaHei", 14, "bold")).pack(pady=(0, 10))
-        ttk.Label(frame, text=message, font=("Microsoft YaHei", 10), wraplength=300).pack(pady=(0, 15))
+        ttk.Label(frame, text=heading, font=(_FONT, 14, "bold")).pack(pady=(0, 10))
+        ttk.Label(frame, text=message, font=(_FONT, 10), wraplength=300).pack(pady=(0, 15))
         ttk.Button(frame, text="确定", command=self._on_ok, width=10).pack()
         self.dialog.bind("<Return>", lambda event: self._on_ok())
         self.dialog.bind("<Escape>", lambda event: self._on_ok())
@@ -73,23 +81,38 @@ class UsageDialog:
         self.dialog.resizable(False, False)
         self.dialog.transient(parent)
         self.dialog.grab_set()
-        if os.path.exists(_ICON_PATH):
-            self.dialog.iconbitmap(_ICON_PATH)
+        _apply_window_icon(self.dialog)
 
         frame = ttk.Frame(self.dialog, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
-        ttk.Label(frame, text="护眼程序", font=("Microsoft YaHei", 15, "bold")).pack()
-        ttk.Label(frame, text="程序说明", font=("Microsoft YaHei", 10)).pack(pady=(4, 12))
+        ttk.Label(frame, text="护眼程序", font=(_FONT, 15, "bold")).pack()
+        ttk.Label(frame, text="程序说明", font=(_FONT, 10)).pack(pady=(4, 12))
         self._add_program_description(frame)
         ttk.Separator(frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=(16, 12))
 
         reward_area = ttk.Frame(frame)
         reward_area.pack(fill=tk.X)
-        self._qr_label = ttk.Label(reward_area)
-        self._qr_label.pack(side=tk.LEFT)
+        # 左侧：提示文案 + 赞赏码（点击按钮显示/收起）
+        reward_text = ttk.Frame(reward_area)
+        reward_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        ttk.Label(
+            reward_text,
+            text="如有帮助到你，请我喝一杯咖啡，",
+            font=(_FONT, 10),
+            foreground="#374151",
+        ).pack(anchor=tk.W)
+        ttk.Label(
+            reward_text,
+            text="支持我更好的创作",
+            font=(_FONT, 10),
+            foreground="#374151",
+        ).pack(anchor=tk.W, pady=(2, 10))
+        self._qr_label = ttk.Label(reward_text)
+        self._qr_label.pack(anchor=tk.W)
+
         right_area = ttk.Frame(reward_area)
         right_area.pack(side=tk.RIGHT, anchor=tk.N)
-        ttk.Label(right_area, text="开发者：龙华", font=("Microsoft YaHei", 9)).pack(anchor=tk.E, pady=(2, 16))
+        ttk.Label(right_area, text="开发者：龙华", font=(_FONT, 9)).pack(anchor=tk.E, pady=(2, 16))
         self._reward_button = ttk.Button(right_area, text="赞赏作者", width=14, command=self._show_reward_code)
         self._reward_button.pack(anchor=tk.E)
 
@@ -119,7 +142,7 @@ class UsageDialog:
             borderwidth=0,
             background="#F5F7FB",
             foreground="#1F2937",
-            font=("Microsoft YaHei", 10),
+            font=(_FONT, 10),
             padx=2,
             pady=2,
         )
@@ -137,10 +160,10 @@ class UsageDialog:
         try:
             with Image.open(_REWARD_CODE_PATH) as source:
                 image = source.convert("RGBA")
-                image.thumbnail((160, 160), Image.LANCZOS)
+                image.thumbnail((220, 220), Image.LANCZOS)
                 self._reward_photo = ImageTk.PhotoImage(image)
             self._qr_label.configure(image=self._reward_photo)
-            self._reward_button.configure(text="感谢大佬支持")
+            self._reward_button.configure(text="收起")
             self.dialog.update_idletasks()
         except OSError:
             self._reward_button.configure(text="赞赏码不可用", state=tk.DISABLED)
@@ -170,8 +193,7 @@ class SettingsGUI:
         self._root.configure(bg="#F5F7FB")
         self._root.resizable(True, True)
         self._root.protocol("WM_DELETE_WINDOW", self._on_close)
-        if os.path.exists(_ICON_PATH):
-            self._root.iconbitmap(_ICON_PATH)
+        _apply_window_icon(self._root)
         self._root.attributes("-topmost", True)
         self._configure_styles()
 
@@ -221,7 +243,7 @@ class SettingsGUI:
         style = ttk.Style(self._root)
         style.configure("Page.TFrame", background="#F5F7FB")
         style.configure("Settings.TLabelframe", background="#F5F7FB")
-        style.configure("Settings.TLabelframe.Label", background="#F5F7FB", foreground="#1D3557", font=("Microsoft YaHei", 10, "bold"))
+        style.configure("Settings.TLabelframe.Label", background="#F5F7FB", foreground="#1D3557", font=(_FONT, 10, "bold"))
 
     def _fit_to_screen(self):
         self._root.update_idletasks()
@@ -331,7 +353,7 @@ class SettingsGUI:
         color = f"#{gray:02x}{gray:02x}{gray:02x}"
         canvas.delete("all")
         canvas.create_rectangle(0, 0, 100, 80, fill=color, outline="")
-        canvas.create_text(50, 40, text=f"{value}%", fill="#FFFFFF" if value > 55 else "#334155", font=("Microsoft YaHei", 10, "bold"))
+        canvas.create_text(50, 40, text=f"{value}%", fill="#FFFFFF" if value > 55 else "#334155", font=(_FONT, 10, "bold"))
 
     def _get_value(self, key: str, is_float: bool = False):
         widget = self._entries.get(key)
@@ -340,30 +362,34 @@ class SettingsGUI:
         text = widget.get().strip()
         return float(text) if is_float else int(text)
 
+    def collect_settings(self) -> dict:
+        """收集并校验界面输入，越界值按 NUMERIC_LIMITS 裁剪。
+
+        Raises:
+            ValueError: 输入非法（非数字 / 非有限值）。
+        """
+        raw = {key: self._get_value(key, is_float=is_float) for key, (_, _, is_float) in NUMERIC_LIMITS.items()}
+        raw["autostart"] = self._autostart_var.get()
+        raw["paused"] = self._paused_var.get()
+
+        for key, (minimum, _, is_float) in NUMERIC_LIMITS.items():
+            value = raw[key]
+            if isinstance(value, float) and not math.isfinite(value):
+                raise ValueError(f"{key} 必须是有限数字")
+            raw[key] = float(max(minimum, value)) if is_float else max(int(minimum), value)
+        return raw
+
     def _on_save_click(self):
         try:
-            settings = {
-                "rest_interval": self._get_value("rest_interval"),
-                "rest_duration": self._get_value("rest_duration"),
-                "rest_opacity": self._get_value("rest_opacity"),
-                "blink_interval": self._get_value("blink_interval"),
-                "blink_duration": self._get_value("blink_duration", is_float=True),
-                "blink_opacity": self._get_value("blink_opacity"),
-                "autostart": self._autostart_var.get(),
-                "paused": self._paused_var.get(),
-            }
-            settings["rest_interval"] = max(1, settings["rest_interval"])
-            settings["rest_duration"] = max(5, settings["rest_duration"])
-            settings["blink_interval"] = max(10, settings["blink_interval"])
-            settings["blink_duration"] = max(0.5, settings["blink_duration"])
-            if not math.isfinite(settings["blink_duration"]):
-                raise ValueError("显示时长必须是有限数字")
-            if self._on_save:
-                self._on_save(settings)
-            show_info(self._root, "设置已保存", "新的提醒设置已立即生效。")
-            self._on_close()
+            settings = self.collect_settings()
         except (ValueError, TypeError) as error:
             show_error(self._root, "输入有误", f"请输入有效的数字。\n{error}")
+            return
+
+        if self._on_save:
+            self._on_save(settings)
+        show_info(self._root, "设置已保存", "新的提醒设置已立即生效。")
+        self._on_close()
 
     def _on_close(self):
         if self._root:

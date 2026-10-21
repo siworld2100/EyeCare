@@ -1,107 +1,99 @@
-"""系统托盘 - 最小化到托盘，提供设置和退出菜单"""
+"""系统托盘 - 最小化到托盘，提供设置和退出菜单
 
-import os
-import sys
+托盘运行在独立线程，菜单回调必须回到 Tk 主线程执行，
+因此这里只负责把回调原样转交给上层（上层已做线程调度）。
+"""
+
 import logging
 import threading
 from typing import Callable
+
 import pystray
-from PIL import Image, ImageDraw
+
+from .icons import load_app_icon
 
 logger = logging.getLogger(__name__)
-
-
-def _get_base_path():
-    """获取基础路径（兼容打包后）"""
-    if getattr(sys, 'frozen', False):
-        return sys._MEIPASS
-    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-
-_ICON_PATH = os.path.join(_get_base_path(), "eye_care.ico")
-_PNG_ICON_PATH = os.path.join(_get_base_path(), "eye_care_icon.png")
-
-
-def _load_icon_image() -> Image.Image:
-    """加载托盘图标"""
-    # 优先使用 png 图标
-    if os.path.exists(_PNG_ICON_PATH):
-        return Image.open(_PNG_ICON_PATH)
-    # 使用 ico 图标
-    if os.path.exists(_ICON_PATH):
-        return Image.open(_ICON_PATH)
-    # 兜底：动态生成
-    return _create_fallback_icon()
-
-
-def _create_fallback_icon() -> Image.Image:
-    """兜底：动态生成图标"""
-    size = 64
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-
-    # 眼睛轮廓 - 外层
-    draw.ellipse([8, 16, 56, 48], outline=(100, 200, 100, 255), width=3)
-    # 眼球
-    draw.ellipse([22, 22, 42, 42], fill=(100, 200, 100, 255))
-    # 瞳孔
-    draw.ellipse([28, 28, 36, 36], fill=(30, 80, 30, 255))
-    # 高光
-    draw.ellipse([30, 28, 33, 31], fill=(255, 255, 255, 200))
-
-    return img
 
 
 class TrayManager:
     """系统托盘管理器"""
 
-    def __init__(self, on_settings: Callable = None, on_exit: Callable = None):
+    def __init__(
+        self,
+        on_settings: Callable[[], None] | None = None,
+        on_exit: Callable[[], None] | None = None,
+        on_toggle_pause: Callable[[], None] | None = None,
+        is_paused: Callable[[], bool] | None = None,
+    ):
         """
-        初始化托盘管理器
         Args:
             on_settings: 打开设置界面的回调
             on_exit: 退出程序的回调
+            on_toggle_pause: 暂停/恢复切换回调
+            is_paused: 返回当前是否暂停，用于菜单勾选状态
         """
         self._on_settings = on_settings
         self._on_exit = on_exit
-        self._tray_icon: pystray.Icon = None
-        self._thread: threading.Thread = None
+        self._on_toggle_pause = on_toggle_pause
+        self._is_paused = is_paused or (lambda: False)
+        self._icon: pystray.Icon | None = None
+        self._thread: threading.Thread | None = None
 
     def start(self):
-        """启动系统托盘（在后台线程中运行）"""
-        icon_image = _load_icon_image()
-
+        """启动系统托盘（在后台守护线程中运行）"""
         menu = pystray.Menu(
-            pystray.MenuItem("设置", self._menu_settings, default=True),
+            pystray.MenuItem("打开设置", self._menu_settings, default=True),
+            pystray.MenuItem(
+                "暂停提醒",
+                self._menu_toggle_pause,
+                checked=lambda _item: self._is_paused(),
+            ),
+            pystray.Menu.SEPARATOR,
             pystray.MenuItem("退出", self._menu_exit),
         )
-
-        self._tray_icon = pystray.Icon(
-            "EyeCare",
-            icon_image,
-            "护眼程序",
-            menu
+        self._icon = pystray.Icon(
+            "EyeCare", load_app_icon(64), "护眼程序", menu
         )
-
-        self._thread = threading.Thread(target=self._tray_icon.run, daemon=True)
+        self._thread = threading.Thread(
+            target=self._icon.run, name="EyeCareTray", daemon=True
+        )
         self._thread.start()
         logger.info("系统托盘已启动")
 
     def stop(self):
         """停止系统托盘"""
-        if self._tray_icon:
-            self._tray_icon.stop()
-            self._tray_icon = None
+        icon, self._icon = self._icon, None
+        if icon is not None:
+            try:
+                icon.stop()
+            except Exception as exc:  # pystray 在线程未就绪时可能抛任意异常
+                logger.debug("停止托盘失败: %s", exc)
+        if self._thread is not None and self._thread.is_alive():
+            self._thread.join(timeout=2.0)
+        self._thread = None
         logger.info("系统托盘已停止")
 
-    def _menu_settings(self, icon, item):
-        """菜单 - 设置"""
+    def refresh_menu(self):
+        """状态变化后刷新菜单勾选态"""
+        if self._icon is not None:
+            try:
+                self._icon.update_menu()
+            except Exception as exc:
+                logger.debug("刷新托盘菜单失败: %s", exc)
+
+    # ---- 菜单回调（托盘线程） ----
+
+    def _menu_settings(self, _icon, _item):
         logger.debug("托盘菜单: 打开设置")
         if self._on_settings:
             self._on_settings()
 
-    def _menu_exit(self, icon, item):
-        """菜单 - 退出"""
+    def _menu_toggle_pause(self, _icon, _item):
+        logger.debug("托盘菜单: 切换暂停")
+        if self._on_toggle_pause:
+            self._on_toggle_pause()
+
+    def _menu_exit(self, _icon, _item):
         logger.debug("托盘菜单: 退出程序")
         if self._on_exit:
             self._on_exit()
